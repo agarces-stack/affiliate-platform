@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrackMagnet - Admin Dashboard</title>
+    <title>MagnetRaffic - Admin Dashboard</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
@@ -61,7 +61,7 @@
     <!-- LOGIN -->
     <div class="login-page" id="loginPage">
         <div class="login-box">
-            <h2>TrackMagnet Admin</h2>
+            <h2>MagnetRaffic Admin</h2>
             <div class="error" id="loginError"></div>
             <input type="email" id="loginEmail" placeholder="Email" value="">
             <input type="password" id="loginPassword" placeholder="Password" value="">
@@ -72,7 +72,7 @@
     <!-- DASHBOARD -->
     <div class="dashboard" id="dashboardPage">
         <div class="sidebar">
-            <h2>TrackMagnet</h2>
+            <h2>MagnetRaffic</h2>
             <a href="#" class="active" onclick="showSection('overview')">Overview</a>
             <a href="#" onclick="showSection('affiliates')">Affiliates</a>
             <a href="#" onclick="showSection('campaigns')">Campaigns</a>
@@ -156,7 +156,7 @@
 
     <script>
         const API = window.location.origin;
-        let token = localStorage.getItem('tm_token');
+        let token = localStorage.getItem('mr_token');
         let user = null;
 
         if (token) { showDashboard(); }
@@ -174,7 +174,7 @@
                 if (data.token) {
                     token = data.token;
                     user = data.user;
-                    localStorage.setItem('tm_token', token);
+                    localStorage.setItem('mr_token', token);
                     showDashboard();
                 } else {
                     document.getElementById('loginError').textContent = data.error || 'Login failed';
@@ -185,7 +185,7 @@
         }
 
         function logout() {
-            localStorage.removeItem('tm_token');
+            localStorage.removeItem('mr_token');
             token = null;
             document.getElementById('loginPage').style.display = 'flex';
             document.getElementById('dashboardPage').style.display = 'none';

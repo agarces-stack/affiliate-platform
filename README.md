@@ -1,4 +1,4 @@
-# Affiliate Platform
+# MagnetRaffic
 
 Plataforma propia de affiliate tracking para Traduce y Trebolife.
 
