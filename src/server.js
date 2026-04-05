@@ -11,6 +11,7 @@ const reportRoutes = require('./routes/reports');
 const authRoutes = require('./routes/auth');
 const couponRoutes = require('./routes/coupons');
 const payoutRoutes = require('./routes/payouts');
+const fraudRoutes = require('./routes/fraud');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +37,7 @@ app.use('/api/conversions', conversionRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/payouts', payoutRoutes);
+app.use('/api/fraud', fraudRoutes);
 
 // ============================================
 // FRONTEND ROUTES

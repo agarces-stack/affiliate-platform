@@ -73,6 +73,7 @@
         <a onclick="showSection('conversions')">Conversions</a>
         <a onclick="showSection('coupons')">Coupons</a>
         <a onclick="showSection('payouts')">Payouts</a>
+        <a onclick="showSection('fraud')">Fraud Detection</a>
         <a onclick="showSection('pixel')">Tracking Pixel</a>
         <a class="logout" onclick="logout()">Logout</a>
     </div>
@@ -117,6 +118,18 @@
         <div class="section" id="sec-payouts">
             <div class="top-bar"><h1>Payouts</h1><button class="btn btn-blue" onclick="showAddPayoutModal()">+ Create Payout</button></div>
             <table id="payTable"><thead><tr><th>ID</th><th>Affiliate</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- FRAUD DETECTION -->
+        <div class="section" id="sec-fraud">
+            <div class="top-bar"><h1>Fraud Detection</h1><button class="btn btn-red" onclick="showBlockIPModal()">Block IP</button></div>
+            <div class="stats-grid" id="fraudStats"></div>
+            <h2 style="margin:20px 0 15px">Suspicious IPs</h2>
+            <table id="suspiciousTable"><thead><tr><th>IP</th><th>Alerts</th><th>Max Severity</th><th>Last Alert</th><th>Actions</th></tr></thead><tbody></tbody></table>
+            <h2 style="margin:20px 0 15px">Blocked IPs</h2>
+            <table id="blockedTable"><thead><tr><th>IP</th><th>Reason</th><th>Blocked By</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+            <h2 style="margin:20px 0 15px">Recent Fraud Alerts</h2>
+            <table id="fraudTable"><thead><tr><th>Date</th><th>Affiliate</th><th>Rule</th><th>Severity</th><th>Details</th><th>Action</th></tr></thead><tbody></tbody></table>
         </div>
 
         <!-- TRACKING PIXEL -->
@@ -256,7 +269,7 @@ function showSection(name){
     document.getElementById('sec-'+name).classList.add('active');
     document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
     if(event&&event.target)event.target.classList.add('active');
-    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break}
+    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'fraud':loadFraud();break}
 }
 
 // MODALS
@@ -375,6 +388,52 @@ function exportCSV(type){
 }
 function download(content,filename){
     const blob=new Blob([content],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+}
+
+// FRAUD
+async function loadFraud(){
+    const stats=await api('/api/fraud/stats');
+    document.getElementById('fraudStats').innerHTML=`
+        <div class="stat-card"><div class="label">Total Alerts</div><div class="value yellow">${stats.total_alerts}</div></div>
+        <div class="stat-card"><div class="label">Today Alerts</div><div class="value yellow">${stats.today_alerts}</div></div>
+        <div class="stat-card"><div class="label">Critical</div><div class="value" style="color:#ef4444">${stats.critical_alerts}</div></div>
+        <div class="stat-card"><div class="label">High Severity</div><div class="value" style="color:#f97316">${stats.high_alerts}</div></div>
+        <div class="stat-card"><div class="label">Blocked IPs</div><div class="value" style="color:#ef4444">${stats.blocked_ips}</div></div>`;
+
+    const suspicious=await api('/api/fraud/suspicious-ips');
+    document.querySelector('#suspiciousTable tbody').innerHTML=suspicious.map(x=>`<tr>
+        <td><code>${x.ip}</code></td><td>${x.alert_count}</td>
+        <td><span class="badge ${x.max_severity==='critical'||x.max_severity==='high'?'badge-red':'badge-yellow'}">${x.max_severity}</span></td>
+        <td>${new Date(x.last_alert).toLocaleString()}</td>
+        <td><button class="btn btn-red" onclick="blockIP('${x.ip}','Auto-flagged: ${x.alert_count} alerts')">Block</button></td>
+    </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#64748b">No suspicious IPs</td></tr>';
+
+    const blocked=await api('/api/fraud/blocked-ips');
+    document.querySelector('#blockedTable tbody').innerHTML=blocked.map(x=>`<tr>
+        <td><code>${x.ip_address}</code></td><td>${x.reason||'-'}</td><td>${x.blocked_by||'-'}</td>
+        <td>${new Date(x.created_at).toLocaleString()}</td>
+        <td>${x.is_active?`<button class="btn btn-green" onclick="unblockIP('${x.ip_address}')">Unblock</button>`:'<span class="badge badge-yellow">Inactive</span>'}</td>
+    </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#64748b">No blocked IPs</td></tr>';
+
+    const logs=await api('/api/fraud/logs?limit=50');
+    document.querySelector('#fraudTable tbody').innerHTML=logs.map(x=>{
+        const details=typeof x.details==='string'?JSON.parse(x.details):x.details;
+        return`<tr>
+        <td>${new Date(x.created_at).toLocaleString()}</td>
+        <td>${x.affiliate_email||x.ref_id||'-'}</td>
+        <td><code>${x.rule}</code></td>
+        <td><span class="badge ${x.severity==='critical'||x.severity==='high'?'badge-red':x.severity==='medium'?'badge-yellow':'badge-green'}">${x.severity}</span></td>
+        <td style="font-size:12px">${JSON.stringify(details).substring(0,60)}</td>
+        <td><span class="badge ${x.action_taken==='blocked'?'badge-red':x.action_taken==='flagged'?'badge-yellow':'badge-green'}">${x.action_taken}</span></td>
+    </tr>`}).join('')||'<tr><td colspan="6" style="text-align:center;color:#64748b">No fraud alerts</td></tr>';
+}
+async function blockIP(ip,reason){await api('/api/fraud/block-ip',{method:'POST',body:JSON.stringify({ip_address:ip,reason:reason||'Manual block'})});loadFraud()}
+async function unblockIP(ip){await api('/api/fraud/unblock-ip/'+ip,{method:'DELETE'});loadFraud()}
+function showBlockIPModal(){
+    openModal(`<h2>Block IP Address</h2>
+        <label>IP Address</label><input id="block_ip" placeholder="123.45.67.89">
+        <label>Reason</label><input id="block_reason" placeholder="Reason for blocking">
+        <div class="modal-actions"><button class="btn btn-red" onclick="blockIP(document.getElementById('block_ip').value,document.getElementById('block_reason').value);closeModal()">Block IP</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
 }
 
 function N(v){return Number(v||0).toFixed(2)}

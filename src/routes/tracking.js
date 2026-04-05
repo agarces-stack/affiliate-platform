@@ -3,6 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const UAParser = require('ua-parser-js');
 const db = require('../models/db');
+const { checkClickFraud } = require('../services/fraud');
 
 // ============================================
 // CLICK TRACKING
@@ -22,6 +23,25 @@ router.get('/', async (req, res) => {
         if (affResult.rows.length === 0) return res.status(404).send('Affiliate not found');
         const affiliate = affResult.rows[0];
 
+        // Detectar IP
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+
+        // FRAUD DETECTION - verificar antes de procesar
+        const fraudCheck = await checkClickFraud({
+            ip,
+            userAgent: req.headers['user-agent'],
+            referer: req.headers['referer'],
+            affiliateId: affiliate.id,
+            campaignId: campaign_id,
+            companyId: affiliate.company_id
+        });
+
+        // Si es fraude critico, bloquear
+        if (fraudCheck.isFraud) {
+            console.log(`[FRAUD BLOCKED] IP: ${ip}, Affiliate: ${ref_id}, Rules: ${fraudCheck.alerts.map(a=>a.rule).join(', ')}`);
+            return res.status(403).send('Request blocked');
+        }
+
         // Buscar campaña
         let campaign = null;
         if (campaign_id) {
@@ -32,7 +52,6 @@ router.get('/', async (req, res) => {
             if (campResult.rows.length > 0) campaign = campResult.rows[0];
         }
 
-        // Si no hay campaign_id, buscar la primera campaña activa del afiliado
         if (!campaign) {
             const campResult = await db.query(
                 `SELECT c.id, c.url, c.cookie_days FROM campaigns c
@@ -52,20 +71,14 @@ router.get('/', async (req, res) => {
         // Generar click_id unico
         const click_id = uuidv4();
 
-        // Detectar IP
-        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
-
-        // Verificar si es click unico (misma IP + afiliado en ultimas 24h)
+        // Verificar si es click unico
         const dupeCheck = await db.query(
             `SELECT id FROM clicks WHERE affiliate_id = $1 AND campaign_id = $2
              AND ip_address = $3 AND created_at > NOW() - INTERVAL '24 hours' LIMIT 1`,
             [affiliate.id, campaign.id, ip]
         );
         const is_unique = dupeCheck.rows.length === 0;
-
-        // Detectar bot basico
-        const botPatterns = /bot|crawler|spider|scraper|curl|wget|python|java\/|httpclient/i;
-        const is_bot = botPatterns.test(req.headers['user-agent'] || '');
+        const is_bot = fraudCheck.alerts.some(a => a.rule === 'bot_detected');
 
         // Guardar click
         await db.query(
@@ -80,26 +93,17 @@ router.get('/', async (req, res) => {
              campaign.url, is_unique, is_bot]
         );
 
-        // Actualizar contador del afiliado
-        await db.query(
-            'UPDATE affiliates SET total_clicks = total_clicks + 1 WHERE id = $1',
-            [affiliate.id]
-        );
+        // Actualizar contador (solo si no es bot)
+        if (!is_bot) {
+            await db.query('UPDATE affiliates SET total_clicks = total_clicks + 1 WHERE id = $1', [affiliate.id]);
+        }
 
-        // Setear cookie con click_id
+        // Setear cookie
         const cookieDays = campaign.cookie_days || 30;
-        res.cookie('_aff_click', click_id, {
-            maxAge: cookieDays * 24 * 60 * 60 * 1000,
-            httpOnly: true,
-            sameSite: 'lax'
-        });
-        res.cookie('_aff_ref', ref_id, {
-            maxAge: cookieDays * 24 * 60 * 60 * 1000,
-            httpOnly: true,
-            sameSite: 'lax'
-        });
+        res.cookie('_aff_click', click_id, { maxAge: cookieDays * 86400000, httpOnly: true, sameSite: 'lax' });
+        res.cookie('_aff_ref', ref_id, { maxAge: cookieDays * 86400000, httpOnly: true, sameSite: 'lax' });
 
-        // Redirigir al landing page con click_id
+        // Redirigir
         const redirectUrl = new URL(campaign.url);
         redirectUrl.searchParams.set('click_id', click_id);
         redirectUrl.searchParams.set('ref_id', ref_id);
