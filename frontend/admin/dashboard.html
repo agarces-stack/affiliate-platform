@@ -4,293 +4,380 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MagnetRaffic - Admin Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
-        .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .login-box { background: #1e293b; padding: 40px; border-radius: 16px; width: 400px; }
-        .login-box h2 { margin-bottom: 25px; text-align: center; color: #3b82f6; }
-        .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: 14px; }
-        .login-box button { width: 100%; padding: 14px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
-        .login-box button:hover { background: #2563eb; }
-        .error { color: #ef4444; text-align: center; margin-bottom: 10px; font-size: 14px; }
-
-        .dashboard { display: none; }
-        .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: #1e293b; padding: 20px; }
-        .sidebar h2 { color: #3b82f6; margin-bottom: 30px; font-size: 1.3em; }
-        .sidebar a { display: block; padding: 10px 15px; color: #94a3b8; text-decoration: none; border-radius: 8px; margin-bottom: 5px; font-size: 14px; }
-        .sidebar a:hover, .sidebar a.active { background: #334155; color: white; }
-        .sidebar .logout { position: absolute; bottom: 20px; left: 20px; right: 20px; text-align: center; color: #ef4444; }
-
-        .main { margin-left: 220px; padding: 30px; }
-        .main h1 { margin-bottom: 25px; font-size: 1.8em; }
-
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 30px; }
-        .stat-card { background: #1e293b; padding: 20px; border-radius: 12px; }
-        .stat-card .label { color: #64748b; font-size: 13px; margin-bottom: 5px; }
-        .stat-card .value { font-size: 2em; font-weight: 700; }
-        .stat-card .value.blue { color: #3b82f6; }
-        .stat-card .value.green { color: #22c55e; }
-        .stat-card .value.purple { color: #8b5cf6; }
-        .stat-card .value.yellow { color: #eab308; }
-
-        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; }
-        th { background: #334155; padding: 12px 15px; text-align: left; font-size: 13px; color: #94a3b8; text-transform: uppercase; }
-        td { padding: 12px 15px; border-bottom: 1px solid #1e293b; font-size: 14px; }
-        tr:hover { background: #334155; }
-
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .badge-green { background: #16a34a22; color: #22c55e; }
-        .badge-yellow { background: #eab30822; color: #eab308; }
-        .badge-red { background: #ef444422; color: #ef4444; }
-
-        .section { display: none; }
-        .section.active { display: block; }
-
-        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; }
-        .btn-blue { background: #3b82f6; color: white; }
-        .btn-green { background: #22c55e; color: white; }
-        .btn-red { background: #ef4444; color: white; }
-        .btn:hover { opacity: 0.9; }
-
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
-        .company-name { color: #64748b; font-size: 14px; }
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0}
+        .login-page{min-height:100vh;display:flex;align-items:center;justify-content:center}
+        .login-box{background:#1e293b;padding:40px;border-radius:16px;width:400px;max-width:90vw}
+        .login-box h2{margin-bottom:25px;text-align:center;color:#3b82f6}
+        .login-box input{width:100%;padding:12px;margin-bottom:15px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:14px}
+        .login-box button{width:100%;padding:14px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer}
+        .login-box button:hover{background:#2563eb}
+        .error{color:#ef4444;text-align:center;margin-bottom:10px;font-size:14px}
+        .dashboard{display:none}
+        .sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:#1e293b;padding:20px;overflow-y:auto;z-index:10}
+        .sidebar h2{color:#3b82f6;margin-bottom:30px;font-size:1.3em}
+        .sidebar a{display:block;padding:10px 15px;color:#94a3b8;text-decoration:none;border-radius:8px;margin-bottom:5px;font-size:14px;cursor:pointer}
+        .sidebar a:hover,.sidebar a.active{background:#334155;color:#fff}
+        .sidebar .logout{position:absolute;bottom:20px;left:20px;right:20px;text-align:center;color:#ef4444;cursor:pointer}
+        .main{margin-left:220px;padding:30px}
+        .main h1{margin-bottom:25px;font-size:1.8em}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:30px}
+        .stat-card{background:#1e293b;padding:20px;border-radius:12px}
+        .stat-card .label{color:#64748b;font-size:13px;margin-bottom:5px}
+        .stat-card .value{font-size:2em;font-weight:700}
+        .stat-card .value.blue{color:#3b82f6}.stat-card .value.green{color:#22c55e}.stat-card .value.purple{color:#8b5cf6}.stat-card .value.yellow{color:#eab308}
+        table{width:100%;border-collapse:collapse;background:#1e293b;border-radius:12px;overflow:hidden;margin-bottom:20px}
+        th{background:#334155;padding:12px 15px;text-align:left;font-size:13px;color:#94a3b8;text-transform:uppercase}
+        td{padding:12px 15px;border-bottom:1px solid #0f172a;font-size:14px}
+        tr:hover{background:#334155}
+        .badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600}
+        .badge-green{background:#16a34a22;color:#22c55e}.badge-yellow{background:#eab30822;color:#eab308}.badge-red{background:#ef444422;color:#ef4444}
+        .section{display:none}.section.active{display:block}
+        .btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;margin-right:5px}
+        .btn-blue{background:#3b82f6;color:#fff}.btn-green{background:#22c55e;color:#fff}.btn-red{background:#ef4444;color:#fff}.btn-gray{background:#334155;color:#94a3b8}
+        .btn:hover{opacity:.9}
+        .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px;flex-wrap:wrap;gap:10px}
+        .chart-container{background:#1e293b;border-radius:12px;padding:20px;margin-bottom:30px;max-height:350px}
+        .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+        .modal-overlay.show{display:flex}
+        .modal{background:#1e293b;padding:30px;border-radius:16px;width:500px;max-width:90vw;max-height:90vh;overflow-y:auto}
+        .modal h2{margin-bottom:20px;color:#3b82f6}
+        .modal label{display:block;color:#94a3b8;font-size:13px;margin-bottom:4px;margin-top:12px}
+        .modal input,.modal select,.modal textarea{width:100%;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:14px}
+        .modal textarea{height:80px;resize:vertical}
+        .modal .modal-actions{display:flex;gap:10px;margin-top:20px}
+        .modal .modal-actions button{flex:1}
+        .pixel-code{background:#0f172a;padding:15px;border-radius:8px;font-family:monospace;font-size:12px;white-space:pre-wrap;word-break:break-all;color:#22c55e;margin:10px 0;max-height:200px;overflow-y:auto}
+        @media(max-width:768px){.sidebar{width:60px;padding:10px}.sidebar h2,.sidebar a span{display:none}.main{margin-left:60px;padding:15px}.stats-grid{grid-template-columns:1fr 1fr}}
     </style>
 </head>
 <body>
-    <!-- LOGIN -->
-    <div class="login-page" id="loginPage">
-        <div class="login-box">
-            <h2>MagnetRaffic Admin</h2>
-            <div class="error" id="loginError"></div>
-            <input type="email" id="loginEmail" placeholder="Email" value="">
-            <input type="password" id="loginPassword" placeholder="Password" value="">
-            <button onclick="login()">Login</button>
-        </div>
+<div class="login-page" id="loginPage">
+    <div class="login-box">
+        <h2>MagnetRaffic Admin</h2>
+        <div class="error" id="loginError"></div>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="login()">Login</button>
+    </div>
+</div>
+
+<div class="dashboard" id="dashboardPage">
+    <div class="sidebar">
+        <h2>MagnetRaffic</h2>
+        <a class="active" onclick="showSection('overview')">Overview</a>
+        <a onclick="showSection('affiliates')">Affiliates</a>
+        <a onclick="showSection('campaigns')">Campaigns</a>
+        <a onclick="showSection('conversions')">Conversions</a>
+        <a onclick="showSection('coupons')">Coupons</a>
+        <a onclick="showSection('payouts')">Payouts</a>
+        <a onclick="showSection('pixel')">Tracking Pixel</a>
+        <a class="logout" onclick="logout()">Logout</a>
     </div>
 
-    <!-- DASHBOARD -->
-    <div class="dashboard" id="dashboardPage">
-        <div class="sidebar">
-            <h2>MagnetRaffic</h2>
-            <a href="#" class="active" onclick="showSection('overview')">Overview</a>
-            <a href="#" onclick="showSection('affiliates')">Affiliates</a>
-            <a href="#" onclick="showSection('campaigns')">Campaigns</a>
-            <a href="#" onclick="showSection('conversions')">Conversions</a>
-            <a href="#" onclick="showSection('coupons')">Coupons</a>
-            <a href="#" onclick="showSection('payouts')">Payouts</a>
-            <a href="#" class="logout" onclick="logout()">Logout</a>
+    <div class="main">
+        <!-- OVERVIEW -->
+        <div class="section active" id="sec-overview">
+            <div class="top-bar"><h1>Dashboard</h1><span style="color:#64748b" id="companyName"></span></div>
+            <div class="stats-grid" id="statsGrid"></div>
+            <div class="chart-container"><canvas id="chartRevenue" height="120"></canvas></div>
+            <h2 style="margin-bottom:15px">Top Affiliates</h2>
+            <table id="topAffTable"><thead><tr><th>Affiliate</th><th>Email</th><th>Clicks</th><th>Conversions</th><th>Revenue</th><th>Commission</th></tr></thead><tbody></tbody></table>
         </div>
 
-        <div class="main">
-            <!-- OVERVIEW -->
-            <div class="section active" id="sec-overview">
-                <div class="top-bar">
-                    <h1>Dashboard</h1>
-                    <span class="company-name" id="companyName"></span>
-                </div>
-                <div class="stats-grid" id="statsGrid"></div>
-                <h2 style="margin-bottom:15px">Top Affiliates</h2>
-                <table id="topAffiliatesTable">
-                    <thead><tr><th>Affiliate</th><th>Email</th><th>Clicks</th><th>Conversions</th><th>Revenue</th><th>Commission</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+        <!-- AFFILIATES -->
+        <div class="section" id="sec-affiliates">
+            <div class="top-bar"><h1>Affiliates</h1><button class="btn btn-blue" onclick="showAddAffiliateModal()">+ Add Affiliate</button></div>
+            <div style="margin-bottom:15px"><button class="btn btn-gray" onclick="exportCSV('affiliates')">Export CSV</button></div>
+            <table id="affTable"><thead><tr><th>ID</th><th>Ref ID</th><th>Name</th><th>Email</th><th>Status</th><th>Clicks</th><th>Conv.</th><th>Balance</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
 
-            <!-- AFFILIATES -->
-            <div class="section" id="sec-affiliates">
-                <div class="top-bar">
-                    <h1>Affiliates</h1>
-                </div>
-                <table id="affiliatesTable">
-                    <thead><tr><th>ID</th><th>Ref ID</th><th>Name</th><th>Email</th><th>Status</th><th>Clicks</th><th>Conversions</th><th>Balance</th><th>Actions</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+        <!-- CAMPAIGNS -->
+        <div class="section" id="sec-campaigns">
+            <div class="top-bar"><h1>Campaigns</h1><button class="btn btn-blue" onclick="showAddCampaignModal()">+ Create Campaign</button></div>
+            <table id="campTable"><thead><tr><th>ID</th><th>Name</th><th>URL</th><th>Type</th><th>Commission</th><th>MLM</th><th>Status</th></tr></thead><tbody></tbody></table>
+        </div>
 
-            <!-- CAMPAIGNS -->
-            <div class="section" id="sec-campaigns">
-                <div class="top-bar">
-                    <h1>Campaigns</h1>
-                </div>
-                <table id="campaignsTable">
-                    <thead><tr><th>ID</th><th>Name</th><th>URL</th><th>Type</th><th>Commission</th><th>Status</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+        <!-- CONVERSIONS -->
+        <div class="section" id="sec-conversions">
+            <div class="top-bar"><h1>Conversions</h1></div>
+            <div style="margin-bottom:15px"><button class="btn btn-gray" onclick="exportCSV('conversions')">Export CSV</button></div>
+            <table id="convTable"><thead><tr><th>ID</th><th>Affiliate</th><th>Campaign</th><th>Order</th><th>Amount</th><th>Commission</th><th>Method</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
 
-            <!-- CONVERSIONS -->
-            <div class="section" id="sec-conversions">
-                <div class="top-bar">
-                    <h1>Conversions</h1>
-                </div>
-                <table id="conversionsTable">
-                    <thead><tr><th>ID</th><th>Affiliate</th><th>Order</th><th>Amount</th><th>Commission</th><th>Method</th><th>Status</th><th>Date</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+        <!-- COUPONS -->
+        <div class="section" id="sec-coupons">
+            <div class="top-bar"><h1>Coupons</h1><button class="btn btn-blue" onclick="showAddCouponModal()">+ Create Coupon</button></div>
+            <table id="coupTable"><thead><tr><th>Code</th><th>Affiliate</th><th>Campaign</th><th>Discount</th><th>Usage</th><th>Active</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
 
-            <!-- COUPONS -->
-            <div class="section" id="sec-coupons">
-                <div class="top-bar">
-                    <h1>Coupons</h1>
-                </div>
-                <table id="couponsTable">
-                    <thead><tr><th>Code</th><th>Affiliate</th><th>Campaign</th><th>Usage</th><th>Active</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+        <!-- PAYOUTS -->
+        <div class="section" id="sec-payouts">
+            <div class="top-bar"><h1>Payouts</h1><button class="btn btn-blue" onclick="showAddPayoutModal()">+ Create Payout</button></div>
+            <table id="payTable"><thead><tr><th>ID</th><th>Affiliate</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
 
-            <!-- PAYOUTS -->
-            <div class="section" id="sec-payouts">
-                <div class="top-bar">
-                    <h1>Payouts</h1>
-                </div>
-                <table id="payoutsTable">
-                    <thead><tr><th>ID</th><th>Affiliate</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+        <!-- TRACKING PIXEL -->
+        <div class="section" id="sec-pixel">
+            <div class="top-bar"><h1>Tracking Pixel & Integration</h1></div>
+            <div style="background:#1e293b;padding:20px;border-radius:12px;margin-bottom:20px">
+                <h3 style="color:#3b82f6;margin-bottom:15px">1. JavaScript Pixel (recommended)</h3>
+                <p style="color:#94a3b8;margin-bottom:10px">Paste this script on your thank-you/conversion page:</p>
+                <div class="pixel-code" id="jsPixelCode"></div>
+                <button class="btn btn-blue" onclick="copyPixel('js')">Copy Code</button>
+            </div>
+            <div style="background:#1e293b;padding:20px;border-radius:12px;margin-bottom:20px">
+                <h3 style="color:#3b82f6;margin-bottom:15px">2. Image Pixel</h3>
+                <p style="color:#94a3b8;margin-bottom:10px">Add this invisible image to your conversion page:</p>
+                <div class="pixel-code" id="imgPixelCode"></div>
+                <button class="btn btn-blue" onclick="copyPixel('img')">Copy Code</button>
+            </div>
+            <div style="background:#1e293b;padding:20px;border-radius:12px;margin-bottom:20px">
+                <h3 style="color:#3b82f6;margin-bottom:15px">3. Server-to-Server (S2S) Postback</h3>
+                <p style="color:#94a3b8;margin-bottom:10px">Call this URL from your server when a conversion happens:</p>
+                <div class="pixel-code" id="s2sCode"></div>
+                <button class="btn btn-blue" onclick="copyPixel('s2s')">Copy Code</button>
+            </div>
+            <div style="background:#1e293b;padding:20px;border-radius:12px">
+                <h3 style="color:#3b82f6;margin-bottom:15px">4. Landing Page Script</h3>
+                <p style="color:#94a3b8;margin-bottom:10px">Add this to your landing page to capture click_id:</p>
+                <div class="pixel-code" id="landingCode"></div>
+                <button class="btn btn-blue" onclick="copyPixel('landing')">Copy Code</button>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        const API = window.location.origin;
-        let token = localStorage.getItem('mr_token');
-        let user = null;
+<!-- MODALS -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modalContent"></div>
+</div>
 
-        if (token) { showDashboard(); }
+<script>
+const API=window.location.origin;
+let token=localStorage.getItem('mr_token'),user=null,chartInstance=null;
+if(token)showDashboard();
 
-        async function login() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            try {
-                const res = await fetch(API + '/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                const data = await res.json();
-                if (data.token) {
-                    token = data.token;
-                    user = data.user;
-                    localStorage.setItem('mr_token', token);
-                    showDashboard();
-                } else {
-                    document.getElementById('loginError').textContent = data.error || 'Login failed';
-                }
-            } catch (e) {
-                document.getElementById('loginError').textContent = 'Connection error';
-            }
-        }
+async function login(){
+    const res=await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('loginEmail').value,password:document.getElementById('loginPassword').value})});
+    const d=await res.json();
+    if(d.token){token=d.token;user=d.user;localStorage.setItem('mr_token',token);showDashboard()}
+    else document.getElementById('loginError').textContent=d.error||'Login failed';
+}
+function logout(){localStorage.removeItem('mr_token');token=null;location.reload()}
+async function api(p,opt){const r=await fetch(API+p,{headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},...opt});return r.json()}
 
-        function logout() {
-            localStorage.removeItem('mr_token');
-            token = null;
-            document.getElementById('loginPage').style.display = 'flex';
-            document.getElementById('dashboardPage').style.display = 'none';
-        }
+async function showDashboard(){
+    document.getElementById('loginPage').style.display='none';
+    document.getElementById('dashboardPage').style.display='block';
+    if(!user){try{const d=JSON.parse(atob(token.split('.')[1]));user={name:d.email,company_id:d.company_id}}catch(e){}}
+    loadOverview();setupPixelCodes();
+}
 
-        async function api(path) {
-            const res = await fetch(API + path, { headers: { 'Authorization': 'Bearer ' + token } });
-            return res.json();
-        }
+async function loadOverview(){
+    const s=await api('/api/reports/dashboard');
+    document.getElementById('companyName').textContent=user?.name||'';
+    document.getElementById('statsGrid').innerHTML=`
+        <div class="stat-card"><div class="label">Total Affiliates</div><div class="value blue">${s.affiliates}</div></div>
+        <div class="stat-card"><div class="label">Total Clicks</div><div class="value blue">${s.total_clicks}</div></div>
+        <div class="stat-card"><div class="label">Total Conversions</div><div class="value green">${s.total_conversions}</div></div>
+        <div class="stat-card"><div class="label">Total Revenue</div><div class="value green">$${N(s.total_revenue)}</div></div>
+        <div class="stat-card"><div class="label">Total Commission</div><div class="value purple">$${N(s.total_commission)}</div></div>
+        <div class="stat-card"><div class="label">Today Clicks</div><div class="value yellow">${s.today_clicks}</div></div>
+        <div class="stat-card"><div class="label">Today Conversions</div><div class="value yellow">${s.today_conversions}</div></div>
+        <div class="stat-card"><div class="label">Pending Commission</div><div class="value purple">$${N(s.pending_commission)}</div></div>`;
+    const top=await api('/api/reports/top-affiliates?limit=10');
+    document.querySelector('#topAffTable tbody').innerHTML=top.map(a=>`<tr><td>${a.first_name||''} ${a.last_name||''}</td><td>${a.email}</td><td>${a.total_clicks}</td><td>${a.total_conversions}</td><td>$${N(a.total_revenue)}</td><td>$${N(a.total_commission)}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#64748b">No affiliates yet</td></tr>';
+    loadChart();
+}
 
-        async function showDashboard() {
-            document.getElementById('loginPage').style.display = 'none';
-            document.getElementById('dashboardPage').style.display = 'block';
-            loadOverview();
-        }
+async function loadChart(){
+    try{
+        const data=await api('/api/reports/by-date?start_date=2020-01-01&end_date=2030-01-01&group_by=day');
+        const ctx=document.getElementById('chartRevenue').getContext('2d');
+        if(chartInstance)chartInstance.destroy();
+        chartInstance=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date),datasets:[{label:'Revenue ($)',data:data.map(d=>d.revenue),backgroundColor:'#3b82f6'},{label:'Commission ($)',data:data.map(d=>d.commission),backgroundColor:'#8b5cf6'}]},options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8'}}},scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b'}}}}});
+    }catch(e){}
+}
 
-        async function loadOverview() {
-            const stats = await api('/api/reports/dashboard');
-            document.getElementById('companyName').textContent = user?.name || 'Admin';
-            document.getElementById('statsGrid').innerHTML = `
-                <div class="stat-card"><div class="label">Total Affiliates</div><div class="value blue">${stats.affiliates}</div></div>
-                <div class="stat-card"><div class="label">Total Clicks</div><div class="value blue">${stats.total_clicks}</div></div>
-                <div class="stat-card"><div class="label">Total Conversions</div><div class="value green">${stats.total_conversions}</div></div>
-                <div class="stat-card"><div class="label">Total Revenue</div><div class="value green">$${Number(stats.total_revenue).toFixed(2)}</div></div>
-                <div class="stat-card"><div class="label">Total Commission</div><div class="value purple">$${Number(stats.total_commission).toFixed(2)}</div></div>
-                <div class="stat-card"><div class="label">Today Clicks</div><div class="value yellow">${stats.today_clicks}</div></div>
-                <div class="stat-card"><div class="label">Today Conversions</div><div class="value yellow">${stats.today_conversions}</div></div>
-                <div class="stat-card"><div class="label">Pending Commission</div><div class="value purple">$${Number(stats.pending_commission).toFixed(2)}</div></div>
-            `;
+async function loadAffiliates(){
+    const d=await api('/api/affiliates');const a=d.affiliates||d;
+    document.querySelector('#affTable tbody').innerHTML=a.map(x=>`<tr>
+        <td>${x.id}</td><td><code style="color:#3b82f6">${x.ref_id}</code></td><td>${x.first_name||''} ${x.last_name||''}</td><td>${x.email}</td>
+        <td><span class="badge ${x.status==='approved'?'badge-green':x.status==='pending'?'badge-yellow':'badge-red'}">${x.status}</span></td>
+        <td>${x.total_clicks}</td><td>${x.total_conversions}</td><td>$${N(x.balance)}</td>
+        <td>${x.status==='pending'?`<button class="btn btn-green" onclick="updateAff(${x.id},'approved')">Approve</button>`:''}${x.status==='approved'?`<button class="btn btn-red" onclick="updateAff(${x.id},'suspended')">Suspend</button>`:''}</td>
+    </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;color:#64748b">No affiliates</td></tr>';
+}
+async function updateAff(id,status){await api('/api/affiliates/'+id+'/status',{method:'PATCH',body:JSON.stringify({status})});loadAffiliates()}
 
-            const top = await api('/api/reports/top-affiliates?limit=10');
-            const tbody = document.querySelector('#topAffiliatesTable tbody');
-            tbody.innerHTML = top.map(a => `<tr>
-                <td>${a.first_name || ''} ${a.last_name || ''}</td>
-                <td>${a.email}</td>
-                <td>${a.total_clicks}</td>
-                <td>${a.total_conversions}</td>
-                <td>$${Number(a.total_revenue).toFixed(2)}</td>
-                <td>$${Number(a.total_commission).toFixed(2)}</td>
-            </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#64748b">No affiliates yet</td></tr>';
-        }
+async function loadCampaigns(){
+    const c=await api('/api/campaigns');
+    document.querySelector('#campTable tbody').innerHTML=c.map(x=>`<tr>
+        <td>${x.id}</td><td>${x.name}</td><td><a href="${x.url}" target="_blank" style="color:#3b82f6">${x.url.substring(0,35)}...</a></td>
+        <td>${x.commission_type.toUpperCase()}</td><td>${x.commission_type==='cpa'?'$'+N(x.commission_amount):x.commission_type==='revshare'?N(x.commission_percent)+'%':'$'+N(x.commission_amount)+' + '+N(x.commission_percent)+'%'}</td>
+        <td>${x.mlm_enabled?'<span class="badge badge-green">Yes</span>':'No'}</td>
+        <td><span class="badge badge-green">${x.status}</span></td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No campaigns</td></tr>';
+}
 
-        async function loadAffiliates() {
-            const data = await api('/api/affiliates');
-            const affiliates = data.affiliates || data;
-            const tbody = document.querySelector('#affiliatesTable tbody');
-            tbody.innerHTML = affiliates.map(a => `<tr>
-                <td>${a.id}</td>
-                <td><code>${a.ref_id}</code></td>
-                <td>${a.first_name || ''} ${a.last_name || ''}</td>
-                <td>${a.email}</td>
-                <td><span class="badge ${a.status === 'approved' ? 'badge-green' : a.status === 'pending' ? 'badge-yellow' : 'badge-red'}">${a.status}</span></td>
-                <td>${a.total_clicks}</td>
-                <td>${a.total_conversions}</td>
-                <td>$${Number(a.balance).toFixed(2)}</td>
-                <td>
-                    ${a.status === 'pending' ? `<button class="btn btn-green" onclick="updateAffiliate(${a.id},'approved')">Approve</button>` : ''}
-                    ${a.status === 'approved' ? `<button class="btn btn-red" onclick="updateAffiliate(${a.id},'suspended')">Suspend</button>` : ''}
-                </td>
-            </tr>`).join('') || '<tr><td colspan="9" style="text-align:center;color:#64748b">No affiliates</td></tr>';
-        }
+async function loadConversions(){
+    const d=await api('/api/affiliates');const affs=d.affiliates||d;
+    // Simple: show from affiliates stats for now
+    document.querySelector('#convTable tbody').innerHTML='<tr><td colspan="10" style="text-align:center;color:#64748b">View conversions per affiliate in Affiliates section</td></tr>';
+}
 
-        async function updateAffiliate(id, status) {
-            await fetch(API + '/api/affiliates/' + id + '/status', {
-                method: 'PATCH',
-                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status })
-            });
-            loadAffiliates();
-        }
+async function loadCoupons(){
+    const c=await api('/api/coupons');
+    document.querySelector('#coupTable tbody').innerHTML=c.map(x=>`<tr>
+        <td><code style="color:#22c55e">${x.code}</code></td><td>${x.affiliate_email||'-'}</td><td>${x.campaign_name||'-'}</td>
+        <td>${x.discount_type==='percent'?x.discount_value+'%':'$'+N(x.discount_value)}</td><td>${x.usage_count}${x.max_usage?'/'+x.max_usage:''}</td>
+        <td><span class="badge ${x.is_active?'badge-green':'badge-red'}">${x.is_active?'Active':'Inactive'}</span></td>
+        <td>${x.is_active?`<button class="btn btn-red" onclick="deactivateCoupon(${x.id})">Deactivate</button>`:''}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No coupons</td></tr>';
+}
+async function deactivateCoupon(id){await api('/api/coupons/'+id,{method:'DELETE'});loadCoupons()}
 
-        async function loadCampaigns() {
-            const campaigns = await api('/api/campaigns');
-            const tbody = document.querySelector('#campaignsTable tbody');
-            tbody.innerHTML = campaigns.map(c => `<tr>
-                <td>${c.id}</td>
-                <td>${c.name}</td>
-                <td><a href="${c.url}" target="_blank" style="color:#3b82f6">${c.url.substring(0, 40)}</a></td>
-                <td>${c.commission_type.toUpperCase()}</td>
-                <td>${c.commission_type === 'cpa' ? '$' + Number(c.commission_amount).toFixed(2) : Number(c.commission_percent).toFixed(1) + '%'}</td>
-                <td><span class="badge badge-green">${c.status}</span></td>
-            </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:#64748b">No campaigns</td></tr>';
-        }
+async function loadPayouts(){
+    const p=await api('/api/payouts');
+    document.querySelector('#payTable tbody').innerHTML=p.map(x=>`<tr>
+        <td>${x.id}</td><td>${x.affiliate_email||x.ref_id||'-'}</td><td>$${N(x.amount)}</td><td>${x.payment_method||'-'}</td>
+        <td><span class="badge ${x.status==='completed'?'badge-green':x.status==='pending'?'badge-yellow':'badge-red'}">${x.status}</span></td>
+        <td>${new Date(x.created_at).toLocaleDateString()}</td>
+        <td>${x.status==='pending'?`<button class="btn btn-green" onclick="completePayout(${x.id})">Mark Paid</button>`:''}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No payouts</td></tr>';
+}
+async function completePayout(id){await api('/api/payouts/'+id+'/complete',{method:'PATCH',body:JSON.stringify({transaction_id:'manual-'+Date.now()})});loadPayouts()}
 
-        async function loadConversions() {
-            const data = await api('/api/affiliates');
-            const affiliates = data.affiliates || data;
-            // Get conversions from DB directly via a simple query
-            const tbody = document.querySelector('#conversionsTable tbody');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#64748b">Loading...</td></tr>';
-        }
+function showSection(name){
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('sec-'+name).classList.add('active');
+    document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
+    if(event&&event.target)event.target.classList.add('active');
+    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break}
+}
 
-        function showSection(name) {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.getElementById('sec-' + name).classList.add('active');
-            document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
-            event.target.classList.add('active');
+// MODALS
+function openModal(html){document.getElementById('modalContent').innerHTML=html;document.getElementById('modalOverlay').classList.add('show')}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('show')}
 
-            switch(name) {
-                case 'overview': loadOverview(); break;
-                case 'affiliates': loadAffiliates(); break;
-                case 'campaigns': loadCampaigns(); break;
-                case 'conversions': loadConversions(); break;
-            }
-        }
-    </script>
+function showAddCampaignModal(){
+    openModal(`<h2>Create Campaign</h2>
+        <label>Name</label><input id="cm_name" placeholder="Campaign name">
+        <label>Landing Page URL</label><input id="cm_url" placeholder="https://yoursite.com/landing">
+        <label>Description</label><textarea id="cm_desc" placeholder="Campaign description"></textarea>
+        <label>Commission Type</label><select id="cm_type"><option value="cpa">CPA (Fixed amount)</option><option value="revshare">RevShare (Percentage)</option><option value="hybrid">Hybrid (Fixed + %)</option></select>
+        <label>Fixed Amount ($)</label><input id="cm_amount" type="number" value="25" step="0.01">
+        <label>Percentage (%)</label><input id="cm_percent" type="number" value="0" step="0.1">
+        <label>Cookie Duration (days)</label><input id="cm_cookie" type="number" value="30">
+        <label>MLM Enabled</label><select id="cm_mlm"><option value="false">No</option><option value="true">Yes</option></select>
+        <div class="modal-actions"><button class="btn btn-blue" onclick="createCampaign()">Create</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function createCampaign(){
+    await api('/api/campaigns',{method:'POST',body:JSON.stringify({name:document.getElementById('cm_name').value,url:document.getElementById('cm_url').value,description:document.getElementById('cm_desc').value,commission_type:document.getElementById('cm_type').value,commission_amount:parseFloat(document.getElementById('cm_amount').value),commission_percent:parseFloat(document.getElementById('cm_percent').value),cookie_days:parseInt(document.getElementById('cm_cookie').value),mlm_enabled:document.getElementById('cm_mlm').value==='true'})});
+    closeModal();loadCampaigns();
+}
+
+function showAddAffiliateModal(){
+    openModal(`<h2>Add Affiliate</h2>
+        <label>First Name</label><input id="af_first" placeholder="John">
+        <label>Last Name</label><input id="af_last" placeholder="Doe">
+        <label>Email</label><input id="af_email" type="email" placeholder="john@example.com">
+        <label>Password</label><input id="af_pass" type="password" placeholder="Password">
+        <label>Company</label><input id="af_company" placeholder="Company name">
+        <label>Phone</label><input id="af_phone" placeholder="+1-555-0123">
+        <label>Website</label><input id="af_web" placeholder="https://example.com">
+        <div class="modal-actions"><button class="btn btn-blue" onclick="createAffiliate()">Create & Approve</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function createAffiliate(){
+    const d=await api('/api/auth/affiliate/register',{method:'POST',body:JSON.stringify({first_name:document.getElementById('af_first').value,last_name:document.getElementById('af_last').value,email:document.getElementById('af_email').value,password:document.getElementById('af_pass').value,company_name:document.getElementById('af_company').value,phone:document.getElementById('af_phone').value,website:document.getElementById('af_web').value,company_id:user?.company_id||1})});
+    if(d.affiliate_id)await api('/api/affiliates/'+d.affiliate_id+'/status',{method:'PATCH',body:JSON.stringify({status:'approved'})});
+    closeModal();loadAffiliates();
+}
+
+function showAddCouponModal(){
+    openModal(`<h2>Create Coupon</h2>
+        <label>Coupon Code</label><input id="cp_code" placeholder="SAVE20" style="text-transform:uppercase">
+        <label>Affiliate ID</label><input id="cp_aff" type="number" placeholder="1">
+        <label>Campaign ID</label><input id="cp_camp" type="number" placeholder="1">
+        <label>Discount Type</label><select id="cp_type"><option value="percent">Percentage</option><option value="fixed">Fixed Amount</option></select>
+        <label>Discount Value</label><input id="cp_val" type="number" value="10" step="0.01">
+        <label>Max Usage (0 = unlimited)</label><input id="cp_max" type="number" value="0">
+        <div class="modal-actions"><button class="btn btn-blue" onclick="createCoupon()">Create</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function createCoupon(){
+    await api('/api/coupons',{method:'POST',body:JSON.stringify({code:document.getElementById('cp_code').value,affiliate_id:parseInt(document.getElementById('cp_aff').value),campaign_id:parseInt(document.getElementById('cp_camp').value),discount_type:document.getElementById('cp_type').value,discount_value:parseFloat(document.getElementById('cp_val').value),max_usage:parseInt(document.getElementById('cp_max').value)||null})});
+    closeModal();loadCoupons();
+}
+
+function showAddPayoutModal(){
+    openModal(`<h2>Create Payout</h2>
+        <label>Affiliate ID</label><input id="po_aff" type="number" placeholder="1">
+        <label>Amount ($)</label><input id="po_amount" type="number" placeholder="100" step="0.01">
+        <label>Payment Method</label><select id="po_method"><option value="paypal">PayPal</option><option value="bank_transfer">Bank Transfer</option><option value="crypto">Crypto</option><option value="check">Check</option></select>
+        <label>Notes</label><textarea id="po_notes" placeholder="Optional notes"></textarea>
+        <div class="modal-actions"><button class="btn btn-blue" onclick="createPayout()">Create Payout</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function createPayout(){
+    await api('/api/payouts',{method:'POST',body:JSON.stringify({affiliate_id:parseInt(document.getElementById('po_aff').value),amount:parseFloat(document.getElementById('po_amount').value),payment_method:document.getElementById('po_method').value,notes:document.getElementById('po_notes').value})});
+    closeModal();loadPayouts();
+}
+
+function setupPixelCodes(){
+    const base=API;
+    document.getElementById('jsPixelCode').textContent=`<!-- MagnetRaffic Conversion Pixel -->
+<script>
+(function(){
+  var ck=document.cookie.match('_aff_click=([^;]+)');
+  var clickId=ck?ck[1]:new URLSearchParams(window.location.search).get('click_id');
+  if(clickId){
+    var img=new Image();
+    img.src='${base}/postback?click_id='+clickId+'&amount=ORDER_AMOUNT&order_id=ORDER_ID&email=CUSTOMER_EMAIL';
+  }
+})();
+<\/script>`;
+    document.getElementById('imgPixelCode').textContent=`<!-- MagnetRaffic Image Pixel -->
+<img src="${base}/postback?click_id=CLICK_ID&amount=ORDER_AMOUNT&order_id=ORDER_ID" width="1" height="1" style="display:none" />`;
+    document.getElementById('s2sCode').textContent=`# Server-to-Server Postback URL
+GET ${base}/postback?click_id={click_id}&campaign_id={campaign_id}&amount={amount}&order_id={order_id}&email={email}&first_name={name}
+
+# With ref_id instead of click_id
+GET ${base}/postback?ref_id={affiliate_ref_id}&campaign_id={campaign_id}&amount={amount}&order_id={order_id}
+
+# With coupon
+GET ${base}/postback?coupon={coupon_code}&amount={amount}&order_id={order_id}`;
+    document.getElementById('landingCode').textContent=`<!-- Add to your landing page to capture click_id -->
+<script>
+(function(){
+  var params=new URLSearchParams(window.location.search);
+  var clickId=params.get('click_id');
+  var refId=params.get('ref_id');
+  if(clickId)document.cookie='_aff_click='+clickId+';path=/;max-age=2592000';
+  if(refId)document.cookie='_aff_ref='+refId+';path=/;max-age=2592000';
+})();
+<\/script>`;
+}
+function copyPixel(type){
+    const el=document.getElementById(type==='js'?'jsPixelCode':type==='img'?'imgPixelCode':type==='s2s'?'s2sCode':'landingCode');
+    navigator.clipboard.writeText(el.textContent);alert('Copied!');
+}
+
+function exportCSV(type){
+    let data,headers,rows;
+    if(type==='affiliates'){
+        const trs=document.querySelectorAll('#affTable tbody tr');
+        let csv='ID,Ref ID,Name,Email,Status,Clicks,Conversions,Balance\n';
+        trs.forEach(tr=>{const tds=tr.querySelectorAll('td');if(tds.length>1)csv+=[...tds].map(td=>'"'+td.textContent.trim()+'"').join(',')+'\n'});
+        download(csv,'affiliates.csv');
+    }
+}
+function download(content,filename){
+    const blob=new Blob([content],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+}
+
+function N(v){return Number(v||0).toFixed(2)}
+</script>
 </body>
 </html>
