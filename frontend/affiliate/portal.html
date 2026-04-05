@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrackMagnet - Affiliate Portal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+        .login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: #1e293b; padding: 40px; border-radius: 16px; width: 420px; }
+        .login-box h2 { margin-bottom: 25px; text-align: center; color: #8b5cf6; }
+        .login-box input { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; font-size: 14px; }
+        .login-box button { width: 100%; padding: 14px; background: #8b5cf6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .login-box button:hover { background: #7c3aed; }
+        .tabs { display: flex; margin-bottom: 20px; }
+        .tabs button { flex: 1; padding: 10px; background: #334155; border: none; color: #94a3b8; cursor: pointer; font-size: 14px; }
+        .tabs button.active { background: #8b5cf6; color: white; }
+        .tabs button:first-child { border-radius: 8px 0 0 8px; }
+        .tabs button:last-child { border-radius: 0 8px 8px 0; }
+        .error { color: #ef4444; text-align: center; margin-bottom: 10px; font-size: 14px; }
+        .success { color: #22c55e; text-align: center; margin-bottom: 10px; font-size: 14px; }
+
+        .portal { display: none; max-width: 1000px; margin: 0 auto; padding: 30px; }
+        .portal h1 { margin-bottom: 5px; }
+        .portal .subtitle { color: #64748b; margin-bottom: 30px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: #1e293b; padding: 20px; border-radius: 12px; }
+        .stat-card .label { color: #64748b; font-size: 13px; margin-bottom: 5px; }
+        .stat-card .value { font-size: 1.8em; font-weight: 700; }
+        .stat-card .value.blue { color: #3b82f6; }
+        .stat-card .value.green { color: #22c55e; }
+        .stat-card .value.purple { color: #8b5cf6; }
+
+        .link-box { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .link-box h3 { margin-bottom: 10px; color: #8b5cf6; }
+        .link-box .link { background: #0f172a; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; word-break: break-all; display: flex; justify-content: space-between; align-items: center; }
+        .link-box .link button { background: #8b5cf6; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+
+        .logout-btn { position: fixed; top: 20px; right: 20px; background: #334155; color: #94a3b8; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <!-- LOGIN/REGISTER -->
+    <div class="login-page" id="loginPage">
+        <div class="login-box">
+            <h2>Affiliate Portal</h2>
+            <div class="tabs">
+                <button class="active" onclick="showTab('login')">Login</button>
+                <button onclick="showTab('register')">Register</button>
+            </div>
+            <div class="error" id="affError"></div>
+            <div class="success" id="affSuccess"></div>
+
+            <div id="loginForm">
+                <input type="email" id="affEmail" placeholder="Email">
+                <input type="password" id="affPass" placeholder="Password">
+                <button onclick="affLogin()">Login</button>
+            </div>
+
+            <div id="registerForm" style="display:none">
+                <input type="text" id="regFirst" placeholder="First Name">
+                <input type="text" id="regLast" placeholder="Last Name">
+                <input type="email" id="regEmail" placeholder="Email">
+                <input type="password" id="regPass" placeholder="Password">
+                <input type="text" id="regCompany" placeholder="Company Name">
+                <input type="text" id="regPhone" placeholder="Phone">
+                <input type="text" id="regWebsite" placeholder="Website">
+                <button onclick="affRegister()">Register as Affiliate</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PORTAL -->
+    <div class="portal" id="portalPage">
+        <button class="logout-btn" onclick="affLogout()">Logout</button>
+        <h1 id="welcomeName">Welcome</h1>
+        <p class="subtitle">Affiliate ID: <code id="refIdDisplay"></code></p>
+
+        <div class="stats-grid" id="affStats"></div>
+
+        <div class="link-box">
+            <h3>Your Tracking Link</h3>
+            <div class="link">
+                <span id="trackingLink"></span>
+                <button onclick="copyLink()">Copy</button>
+            </div>
+        </div>
+
+        <div class="link-box">
+            <h3>Your Referral Link (MLM)</h3>
+            <div class="link">
+                <span id="mlmLink"></span>
+                <button onclick="copyMLM()">Copy MLM</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = window.location.origin;
+        let affToken = localStorage.getItem('tm_aff_token');
+        let affiliate = null;
+
+        if (affToken) { showPortal(); }
+
+        function showTab(tab) {
+            document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+            document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+            document.querySelectorAll('.tabs button').forEach((b, i) => b.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1)));
+            document.getElementById('affError').textContent = '';
+            document.getElementById('affSuccess').textContent = '';
+        }
+
+        async function affLogin() {
+            const res = await fetch(API + '/api/auth/affiliate/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: document.getElementById('affEmail').value, password: document.getElementById('affPass').value })
+            });
+            const data = await res.json();
+            if (data.token) {
+                affToken = data.token;
+                affiliate = data.affiliate;
+                localStorage.setItem('tm_aff_token', affToken);
+                showPortal();
+            } else {
+                document.getElementById('affError').textContent = data.error;
+            }
+        }
+
+        async function affRegister() {
+            const res = await fetch(API + '/api/auth/affiliate/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    first_name: document.getElementById('regFirst').value,
+                    last_name: document.getElementById('regLast').value,
+                    email: document.getElementById('regEmail').value,
+                    password: document.getElementById('regPass').value,
+                    company_name: document.getElementById('regCompany').value,
+                    phone: document.getElementById('regPhone').value,
+                    website: document.getElementById('regWebsite').value,
+                    company_id: 1
+                })
+            });
+            const data = await res.json();
+            if (data.ref_id) {
+                document.getElementById('affSuccess').textContent = 'Registered! Your ID: ' + data.ref_id + '. Pending approval.';
+                showTab('login');
+            } else {
+                document.getElementById('affError').textContent = data.error;
+            }
+        }
+
+        async function showPortal() {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('portalPage').style.display = 'block';
+
+            const decoded = JSON.parse(atob(affToken.split('.')[1]));
+            const refId = decoded.ref_id;
+
+            document.getElementById('welcomeName').textContent = 'Welcome, ' + (decoded.email || 'Affiliate');
+            document.getElementById('refIdDisplay').textContent = refId;
+            document.getElementById('trackingLink').textContent = API + '/track?ref_id=' + refId + '&campaign_id=1';
+            document.getElementById('mlmLink').textContent = API + '/affiliate?ref=' + refId;
+
+            document.getElementById('affStats').innerHTML = `
+                <div class="stat-card"><div class="label">Your Balance</div><div class="value green">Loading...</div></div>
+                <div class="stat-card"><div class="label">Total Clicks</div><div class="value blue">-</div></div>
+                <div class="stat-card"><div class="label">Conversions</div><div class="value purple">-</div></div>
+                <div class="stat-card"><div class="label">Commission</div><div class="value green">-</div></div>
+            `;
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(document.getElementById('trackingLink').textContent);
+            alert('Link copied!');
+        }
+
+        function copyMLM() {
+            navigator.clipboard.writeText(document.getElementById('mlmLink').textContent);
+            alert('MLM link copied!');
+        }
+
+        function affLogout() {
+            localStorage.removeItem('tm_aff_token');
+            affToken = null;
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('portalPage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

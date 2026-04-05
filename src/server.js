@@ -37,6 +37,14 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/payouts', payoutRoutes);
 
+// ============================================
+// FRONTEND ROUTES
+// ============================================
+const path = require('path');
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../frontend/index.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../frontend/admin/dashboard.html')));
+app.get('/affiliate', (req, res) => res.sendFile(path.join(__dirname, '../frontend/affiliate/portal.html')));
+
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
