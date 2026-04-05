@@ -1,0 +1,23 @@
+{
+  "name": "affiliate-platform",
+  "version": "1.0.0",
+  "description": "Plataforma de affiliate tracking para Traduce y Trebolife",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:migrate": "node database/migrate.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.0",
+    "uuid": "^10.0.0",
+    "ua-parser-js": "^1.0.38",
+    "geoip-lite": "^1.4.10"
+  }
+}
