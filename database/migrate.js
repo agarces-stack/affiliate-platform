@@ -30,6 +30,11 @@ async function migrate() {
         await pool.query(ranksMigration);
         console.log('Ranks tables created!');
 
+        // Ejecutar migration de webhooks
+        const webhooksMigration = fs.readFileSync(path.join(__dirname, 'migration_webhooks.sql'), 'utf8');
+        await pool.query(webhooksMigration);
+        console.log('Webhooks table created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`

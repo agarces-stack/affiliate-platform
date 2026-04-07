@@ -73,6 +73,7 @@
         <a onclick="showSection('conversions')">Conversions</a>
         <a onclick="showSection('coupons')">Coupons</a>
         <a onclick="showSection('payouts')">Payouts</a>
+        <a onclick="showSection('notifications')">Notifications <span id="notifBadge" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;display:none">0</span></a>
         <a onclick="showSection('ranks')">Ranks</a>
         <a onclick="showSection('fraud')">Fraud Detection</a>
         <a onclick="showSection('pixel')">Tracking Pixel</a>
@@ -80,6 +81,13 @@
     </div>
 
     <div class="main">
+        <!-- GLOBAL SEARCH -->
+        <div style="margin-bottom:20px;position:relative">
+            <input id="globalSearch" type="text" placeholder="Search agents, campaigns, conversions..." style="width:100%;padding:12px 16px 12px 40px;border:1px solid #334155;border-radius:10px;background:#1e293b;color:#e2e8f0;font-size:14px" oninput="debounceSearch()" onkeydown="if(event.key==='Escape'){this.value='';document.getElementById('searchResults').style.display='none'}">
+            <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#64748b;font-size:16px">&#128269;</span>
+            <div id="searchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e293b;border:1px solid #334155;border-radius:10px;margin-top:4px;max-height:400px;overflow-y:auto;z-index:50;box-shadow:0 10px 25px rgba(0,0,0,.5)"></div>
+        </div>
+
         <!-- OVERVIEW -->
         <div class="section active" id="sec-overview">
             <div class="top-bar"><h1>Dashboard</h1><span style="color:#64748b" id="companyName"></span></div>
@@ -119,6 +127,12 @@
         <div class="section" id="sec-payouts">
             <div class="top-bar"><h1>Payouts</h1><button class="btn btn-blue" onclick="showAddPayoutModal()">+ Create Payout</button></div>
             <table id="payTable"><thead><tr><th>ID</th><th>Affiliate</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- NOTIFICATIONS -->
+        <div class="section" id="sec-notifications">
+            <div class="top-bar"><h1>Notifications</h1><button class="btn btn-gray" onclick="markAllRead()">Mark All Read</button></div>
+            <div id="notifList"></div>
         </div>
 
         <!-- RANKS -->
@@ -211,7 +225,7 @@ async function showDashboard(){
     document.getElementById('loginPage').style.display='none';
     document.getElementById('dashboardPage').style.display='block';
     if(!user){try{const d=JSON.parse(atob(token.split('.')[1]));user={name:d.email,company_id:d.company_id}}catch(e){}}
-    loadOverview();setupPixelCodes();
+    loadOverview();setupPixelCodes();loadNotifBadge();
 }
 
 async function loadOverview(){
@@ -314,7 +328,7 @@ function showSection(name){
     document.getElementById('sec-'+name).classList.add('active');
     document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
     if(event&&event.target)event.target.classList.add('active');
-    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'ranks':loadRanks();break;case'fraud':loadFraud();break}
+    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'notifications':loadNotifications();break;case'ranks':loadRanks();break;case'fraud':loadFraud();break}
 }
 
 // MODALS
@@ -480,6 +494,44 @@ function showBlockIPModal(){
         <label>Reason</label><input id="block_reason" placeholder="Reason for blocking">
         <div class="modal-actions"><button class="btn btn-red" onclick="blockIP(document.getElementById('block_ip').value,document.getElementById('block_reason').value);closeModal()">Block IP</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
 }
+
+// GLOBAL SEARCH
+let searchTimer;
+function debounceSearch(){clearTimeout(searchTimer);searchTimer=setTimeout(globalSearch,300)}
+async function globalSearch(){
+    const q=document.getElementById('globalSearch').value.trim();
+    const box=document.getElementById('searchResults');
+    if(q.length<2){box.style.display='none';return}
+    const d=await api('/api/reports/search?q='+encodeURIComponent(q));
+    let html='';
+    if(d.affiliates?.length){html+='<div style="padding:8px 16px;color:#64748b;font-size:11px;text-transform:uppercase;border-bottom:1px solid #334155">Agents</div>';html+=d.affiliates.map(a=>`<div style="padding:10px 16px;cursor:pointer;border-bottom:1px solid #0f172a" onclick="document.getElementById('globalSearch').value='';document.getElementById('searchResults').style.display='none';showSection('affiliates')"><span style="color:#3b82f6;font-weight:600">${E(a.ref_id)}</span> ${E(a.first_name||'')} ${E(a.last_name||'')} <span style="color:#64748b">· ${E(a.email)}</span></div>`).join('')}
+    if(d.campaigns?.length){html+='<div style="padding:8px 16px;color:#64748b;font-size:11px;text-transform:uppercase;border-bottom:1px solid #334155">Campaigns</div>';html+=d.campaigns.map(c=>`<div style="padding:10px 16px;cursor:pointer;border-bottom:1px solid #0f172a" onclick="document.getElementById('globalSearch').value='';document.getElementById('searchResults').style.display='none';showSection('campaigns')"><span style="color:#22c55e;font-weight:600">${E(c.name)}</span> <span style="color:#64748b">· ${E(c.commission_type)}</span></div>`).join('')}
+    if(d.conversions?.length){html+='<div style="padding:8px 16px;color:#64748b;font-size:11px;text-transform:uppercase;border-bottom:1px solid #334155">Conversions</div>';html+=d.conversions.map(c=>`<div style="padding:10px 16px;cursor:pointer;border-bottom:1px solid #0f172a" onclick="document.getElementById('globalSearch').value='';document.getElementById('searchResults').style.display='none';showSection('conversions')"><span style="color:#8b5cf6;font-weight:600">$${N(c.amount)}</span> <span style="color:#64748b">· ${E(c.affiliate_email||'')} · ${E(c.order_id||'no order id')}</span></div>`).join('')}
+    if(!html)html='<div style="padding:20px;text-align:center;color:#64748b">No results found</div>';
+    box.innerHTML=html;box.style.display='block';
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#globalSearch')&&!e.target.closest('#searchResults'))document.getElementById('searchResults').style.display='none'});
+
+// NOTIFICATIONS
+async function loadNotifBadge(){
+    try{const d=await api('/api/notifications?unread_only=true&limit=1');const b=document.getElementById('notifBadge');if(d.unread>0){b.textContent=d.unread;b.style.display='inline'}else{b.style.display='none'}}catch(e){}
+}
+async function loadNotifications(){
+    const d=await api('/api/notifications?limit=50');
+    const notifs=d.notifications||[];
+    document.getElementById('notifList').innerHTML=notifs.map(n=>`
+        <div style="background:${n.is_read?'#1e293b':'#1e293b'};border-left:3px solid ${n.is_read?'#334155':'#3b82f6'};padding:15px 20px;border-radius:8px;margin-bottom:8px;cursor:pointer;opacity:${n.is_read?'0.6':'1'}" onclick="markRead(${n.id},this)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+                <strong style="color:${n.is_read?'#94a3b8':'#e2e8f0'}">${E(n.title)}</strong>
+                <span style="color:#64748b;font-size:12px">${new Date(n.created_at).toLocaleString()}</span>
+            </div>
+            <p style="color:#94a3b8;font-size:13px;margin-top:5px">${E(n.message)}</p>
+        </div>
+    `).join('')||'<p style="color:#64748b;text-align:center;padding:40px">No notifications</p>';
+    const b=document.getElementById('notifBadge');if(d.unread>0){b.textContent=d.unread;b.style.display='inline'}else{b.style.display='none'}
+}
+async function markRead(id,el){await api('/api/notifications/'+id+'/read',{method:'PATCH'});if(el){el.style.opacity='0.6';el.style.borderLeftColor='#334155'}loadNotifBadge()}
+async function markAllRead(){await api('/api/notifications/read-all',{method:'PATCH'});loadNotifications()}
 
 // RANKS
 async function loadRanks(){

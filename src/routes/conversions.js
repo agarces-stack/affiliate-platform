@@ -4,6 +4,8 @@ const db = require('../models/db');
 const { authMiddleware } = require('../middleware/auth');
 const { checkConversionFraud } = require('../services/fraud');
 const { evaluateRankUp } = require('../services/rank-evaluator');
+const { Notify } = require('../services/notifications');
+const { triggerWebhooks } = require('../services/webhooks');
 
 // ============================================
 // POSTBACK - Registrar conversion
@@ -193,6 +195,15 @@ router.get('/', async (req, res) => {
         // Calcular comisiones de override (cadena hacia arriba)
         await calculateOverrideCommissions(convResult.rows[0].id, affiliate_id, company_id, camp_id, parseFloat(amount) || 0);
 
+        // Notificar al agente de la nueva venta
+        Notify.newConversion(company_id, affiliate_id, parseFloat(amount) || 0, commission);
+
+        // Disparar webhooks
+        triggerWebhooks(company_id, 'new_conversion', {
+            conversion_id: convResult.rows[0].id, affiliate_id, amount: parseFloat(amount) || 0,
+            commission, tracking_method, order_id: order_id || null
+        });
+
         // Evaluar ascenso de rango automático (no bloquea la respuesta)
         evaluateRankUp(affiliate_id, company_id).catch(err => console.error('Rank eval error:', err));
 
@@ -321,6 +332,11 @@ async function calculateOverrideCommissions(conversionId, affiliateId, companyId
                     'UPDATE affiliates SET balance = balance + $1, total_commission = total_commission + $1 WHERE id = $2',
                     [overrideCommission, parentId]
                 );
+
+                // Notificar override
+                const sourceAff = await db.query('SELECT first_name, email FROM affiliates WHERE id = $1', [affiliateId]);
+                const sourceName = sourceAff.rows[0]?.first_name || sourceAff.rows[0]?.email || 'team member';
+                Notify.overrideEarned(companyId, parentId, overrideCommission, sourceName);
             }
 
             currentAffiliateId = parentId;
@@ -436,6 +452,7 @@ router.patch('/:id/reject', authMiddleware, async (req, res) => {
         );
 
         await client.query('COMMIT');
+        Notify.conversionRejected(req.user.company_id, c.affiliate_id, c.amount);
         res.json({ status: 'rejected', reverted_commission: parseFloat(c.commission) });
     } catch (err) {
         await client.query('ROLLBACK');

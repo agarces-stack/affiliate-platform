@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
 const { authMiddleware } = require('../middleware/auth');
+const { Notify } = require('../services/notifications');
 
 // Listar payouts
 router.get('/', authMiddleware, async (req, res) => {
@@ -51,6 +52,7 @@ router.post('/', authMiddleware, async (req, res) => {
         await client.query('UPDATE affiliates SET balance = balance - $1 WHERE id = $2', [amount, affiliate_id]);
 
         await client.query('COMMIT');
+        Notify.payoutCreated(req.user.company_id, affiliate_id, amount, payment_method);
         res.json(result.rows[0]);
     } catch (err) {
         await client.query('ROLLBACK');

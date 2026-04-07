@@ -83,4 +83,46 @@ router.get('/top-affiliates', authMiddleware, async (req, res) => {
     }
 });
 
+// Búsqueda global
+router.get('/search', authMiddleware, async (req, res) => {
+    try {
+        const { q } = req.query;
+        if (!q || q.length < 2) return res.json({ affiliates: [], campaigns: [], conversions: [] });
+
+        const search = `%${q}%`;
+        const compId = req.user.company_id;
+
+        const [affiliates, campaigns, conversions] = await Promise.all([
+            db.query(
+                `SELECT id, ref_id, email, first_name, last_name, rank, status
+                 FROM affiliates WHERE company_id = $1 AND (email ILIKE $2 OR first_name ILIKE $2 OR last_name ILIKE $2 OR ref_id ILIKE $2)
+                 LIMIT 5`,
+                [compId, search]
+            ),
+            db.query(
+                `SELECT id, name, url, status, commission_type
+                 FROM campaigns WHERE company_id = $1 AND (name ILIKE $2 OR url ILIKE $2)
+                 LIMIT 5`,
+                [compId, search]
+            ),
+            db.query(
+                `SELECT c.id, c.order_id, c.amount, c.commission, c.status, c.tracking_method, a.email as affiliate_email
+                 FROM conversions c LEFT JOIN affiliates a ON c.affiliate_id = a.id
+                 WHERE c.company_id = $1 AND (c.order_id ILIKE $2 OR c.customer_email ILIKE $2 OR a.email ILIKE $2)
+                 LIMIT 5`,
+                [compId, search]
+            ),
+        ]);
+
+        res.json({
+            affiliates: affiliates.rows,
+            campaigns: campaigns.rows,
+            conversions: conversions.rows
+        });
+    } catch (err) {
+        console.error('Error searching:', err);
+        res.status(500).json({ error: 'Search failed' });
+    }
+});
+
 module.exports = router;

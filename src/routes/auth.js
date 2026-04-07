@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../models/db');
+const { Notify } = require('../services/notifications');
 
 // Admin login
 router.post('/login', async (req, res) => {
@@ -115,6 +116,13 @@ router.post('/affiliate/register', async (req, res) => {
             [resolved_company_id, ref_id, email, password_hash, first_name, last_name,
              company_name, phone, website, parent_affiliate_id, 1, 'pending']
         );
+        // Notificar al admin de nuevo registro
+        Notify.newAffiliate(resolved_company_id, first_name, email);
+        // Notificar al parent que tiene nuevo recluta
+        if (parent_affiliate_id) {
+            Notify.newRecruit(resolved_company_id, parent_affiliate_id, first_name);
+        }
+
         res.json({
             status: 'registered',
             affiliate_id: result.rows[0].id,

@@ -17,23 +17,41 @@
         .tabs button.active{background:#8b5cf6;color:#fff}.tabs button:first-child{border-radius:8px 0 0 8px}.tabs button:last-child{border-radius:0 8px 8px 0}
         .error{color:#ef4444;text-align:center;margin-bottom:10px;font-size:14px}
         .success{color:#22c55e;text-align:center;margin-bottom:10px;font-size:14px}
-        .portal{display:none;max-width:1000px;margin:0 auto;padding:30px}
-        .portal h1{margin-bottom:5px}
-        .subtitle{color:#64748b;margin-bottom:30px}
-        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:30px}
-        .stat-card{background:#1e293b;padding:20px;border-radius:12px}
-        .stat-card .label{color:#64748b;font-size:13px;margin-bottom:5px}
-        .stat-card .value{font-size:1.8em;font-weight:700}
+        .portal{display:none;max-width:1000px;margin:0 auto;padding:20px;padding-bottom:80px}
+        .portal h1{margin-bottom:5px;font-size:1.4em}
+        .subtitle{color:#64748b;margin-bottom:20px;font-size:14px}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+        .stat-card{background:#1e293b;padding:16px;border-radius:12px;text-align:center}
+        .stat-card .label{color:#64748b;font-size:11px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+        .stat-card .value{font-size:1.5em;font-weight:700}
         .stat-card .value.blue{color:#3b82f6}.stat-card .value.green{color:#22c55e}.stat-card .value.purple{color:#8b5cf6}
-        .link-box{background:#1e293b;padding:20px;border-radius:12px;margin-bottom:20px}
-        .link-box h3{margin-bottom:10px;color:#8b5cf6}
-        .link-box .link{background:#0f172a;padding:12px;border-radius:8px;font-family:monospace;font-size:13px;word-break:break-all;display:flex;justify-content:space-between;align-items:center;gap:10px}
-        .link-box .link button{background:#8b5cf6;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap}
+        .link-box{background:#1e293b;padding:16px;border-radius:12px;margin-bottom:16px}
+        .link-box h3{margin-bottom:10px;color:#8b5cf6;font-size:15px}
+        .link-box .link{background:#0f172a;padding:10px;border-radius:8px;font-family:monospace;font-size:12px;word-break:break-all;display:flex;justify-content:space-between;align-items:center;gap:8px}
+        .link-box .link button{background:#8b5cf6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap;min-height:36px}
         .link-box .link button:hover{background:#7c3aed}
-        .link-box select{width:100%;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;margin-bottom:10px;font-size:14px}
-        .link-box input{width:100%;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;margin-bottom:10px;font-size:14px}
-        .logout-btn{position:fixed;top:20px;right:20px;background:#334155;color:#94a3b8;border:none;padding:8px 16px;border-radius:8px;cursor:pointer}
-        @media(max-width:600px){.stats-grid{grid-template-columns:1fr 1fr}.link-box .link{flex-direction:column}}
+        .link-box .link button:active{transform:scale(0.95)}
+        .link-box select{width:100%;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;margin-bottom:10px;font-size:16px}
+        .link-box input{width:100%;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;margin-bottom:10px;font-size:16px}
+        .logout-btn{position:fixed;top:12px;right:12px;background:#334155;color:#94a3b8;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;z-index:10}
+        /* Bottom nav for mobile */
+        .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;padding:8px 0;z-index:20}
+        .bottom-nav .nav-items{display:flex;justify-content:space-around;align-items:center}
+        .bottom-nav .nav-item{display:flex;flex-direction:column;align-items:center;color:#64748b;font-size:10px;cursor:pointer;padding:4px 8px;border-radius:8px;text-decoration:none}
+        .bottom-nav .nav-item.active{color:#8b5cf6}
+        .bottom-nav .nav-item span{font-size:18px;margin-bottom:2px}
+        /* Portal sections for tab navigation */
+        .portal-section{display:block}
+        @media(max-width:600px){
+            .stats-grid{grid-template-columns:1fr 1fr;gap:8px}
+            .stat-card{padding:12px}
+            .stat-card .value{font-size:1.3em}
+            .link-box .link{flex-direction:column}
+            .portal{padding:15px;padding-bottom:90px}
+            .portal h1{font-size:1.2em}
+            .bottom-nav{display:block}
+            .logout-btn{top:8px;right:8px;padding:6px 12px;font-size:12px}
+        }
     </style>
 </head>
 <body>
@@ -107,6 +125,12 @@
         <p style="color:#94a3b8;font-size:13px" id="couponList">No coupons assigned yet.</p>
     </div>
 
+    <!-- NOTIFICATIONS -->
+    <div class="link-box" id="notifSection">
+        <h3 style="margin-bottom:15px">Notifications <span id="affNotifBadge" style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;display:none">0</span></h3>
+        <div id="affNotifList"></div>
+    </div>
+
     <!-- TEAM SECTION -->
     <div class="link-box" id="teamSection">
         <h3 style="margin-bottom:15px">My Team</h3>
@@ -116,6 +140,8 @@
             <thead><tr style="border-bottom:1px solid #334155"><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Level</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Members</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Active</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Revenue</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Commission</th></tr></thead>
             <tbody></tbody>
         </table>
+        <h4 style="color:#94a3b8;margin-bottom:10px">Team Tree</h4>
+        <div id="teamTree" style="margin-bottom:20px;font-size:13px"></div>
         <h4 style="color:#94a3b8;margin-bottom:10px">Top Performers</h4>
         <table id="teamTopTable" style="width:100%;border-collapse:collapse">
             <thead><tr style="border-bottom:1px solid #334155"><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Name</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Rank</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Conversions</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Revenue</th></tr></thead>
@@ -124,7 +150,22 @@
     </div>
 </div>
 
+<!-- BOTTOM NAV (mobile) -->
+<div class="bottom-nav" id="bottomNav">
+    <div class="nav-items">
+        <a class="nav-item active" onclick="scrollToSection('affStats')"><span>&#128200;</span>Stats</a>
+        <a class="nav-item" onclick="scrollToSection('teamSection')"><span>&#128101;</span>Team</a>
+        <a class="nav-item" onclick="scrollToSection('notifSection')"><span>&#128276;</span>Alerts</a>
+        <a class="nav-item" onclick="affLogout()"><span>&#128682;</span>Logout</a>
+    </div>
+</div>
+
 <script>
+function scrollToSection(id){
+    document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    event.target.closest('.nav-item').classList.add('active');
+}
 const API=window.location.origin;
 let affToken=localStorage.getItem('mr_aff_token'),affData=null;
 if(affToken)showPortal();
@@ -174,6 +215,7 @@ async function showPortal(){
         document.getElementById('st_rate').textContent=s.conversion_rate||'0%';
     }catch(e){}
     loadTeam();
+    loadAffNotifs();
 }
 
 function updateLink(){
@@ -202,6 +244,12 @@ async function loadTeam(){
             <td style="padding:8px">$${Number(l.total_commission||0).toFixed(2)}</td>
         </tr>`).join('')||'<tr><td colspan="5" style="padding:8px;color:#64748b">No team members yet</td></tr>';
 
+        // Load tree
+        try{
+            const tree=await fetch(API+'/api/team/'+decoded.id+'/tree?depth=5',{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
+            document.getElementById('teamTree').innerHTML=renderTree(tree.team||[]);
+        }catch(e){document.getElementById('teamTree').innerHTML='<p style="color:#64748b">No team members yet</p>'}
+
         const top=await fetch(API+'/api/team/'+decoded.id+'/top?limit=5',{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
         document.querySelector('#teamTopTable tbody').innerHTML=top.map(t=>`<tr style="border-bottom:1px solid #1e293b">
             <td style="padding:8px">${esc(t.first_name||'')} ${esc(t.last_name||'')}</td>
@@ -211,6 +259,39 @@ async function loadTeam(){
     }catch(e){console.error('Team load error:',e)}
 }
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
+
+function renderTree(nodes){
+    if(!nodes||nodes.length===0)return'<p style="color:#64748b">No team members yet</p>';
+    return'<ul style="list-style:none;padding-left:20px;margin:0">'+nodes.map(n=>{
+        const color=n.rank_color||'#64748b';
+        const name=esc(n.first_name||'')+' '+esc(n.last_name||'');
+        const status=n.status==='approved'?'#22c55e':n.status==='pending'?'#eab308':'#ef4444';
+        return`<li style="margin:6px 0;position:relative">
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0f172a;border-radius:8px;border-left:3px solid ${color}">
+                <span style="width:8px;height:8px;border-radius:50%;background:${status};flex-shrink:0" title="${esc(n.status)}"></span>
+                <span style="color:${color};font-weight:600;font-size:12px">${esc(n.rank_name||'R'+n.rank)}</span>
+                <span style="color:#e2e8f0;font-weight:500">${name.trim()||esc(n.email)}</span>
+                <span style="color:#64748b;font-size:11px;margin-left:auto">${n.total_conversions} sales · $${Number(n.total_revenue||0).toFixed(0)}</span>
+            </div>
+            ${n.children&&n.children.length>0?renderTree(n.children):''}
+        </li>`}).join('')+'</ul>';
+}
+
+async function loadAffNotifs(){
+    try{
+        const d=await fetch(API+'/api/notifications?limit=20',{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
+        const notifs=d.notifications||[];
+        const badge=document.getElementById('affNotifBadge');
+        if(d.unread>0){badge.textContent=d.unread;badge.style.display='inline'}else{badge.style.display='none'}
+        document.getElementById('affNotifList').innerHTML=notifs.slice(0,10).map(n=>`
+            <div style="border-left:3px solid ${n.is_read?'#334155':'#8b5cf6'};padding:10px 15px;margin-bottom:6px;border-radius:6px;opacity:${n.is_read?'0.5':'1'}">
+                <strong style="font-size:13px;color:${n.is_read?'#94a3b8':'#e2e8f0'}">${esc(n.title)}</strong>
+                <p style="color:#94a3b8;font-size:12px;margin-top:3px">${esc(n.message)}</p>
+                <span style="color:#64748b;font-size:11px">${new Date(n.created_at).toLocaleString()}</span>
+            </div>
+        `).join('')||'<p style="color:#64748b;font-size:13px">No notifications yet</p>';
+    }catch(e){}
+}
 
 function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent);alert('Copied!')}
 function affLogout(){localStorage.removeItem('mr_aff_token');affToken=null;location.reload()}

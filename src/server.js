@@ -17,6 +17,8 @@ const payoutRoutes = require('./routes/payouts');
 const fraudRoutes = require('./routes/fraud');
 const rankRoutes = require('./routes/ranks');
 const teamRoutes = require('./routes/team');
+const notificationRoutes = require('./routes/notifications');
+const webhookRoutes = require('./routes/webhooks');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -97,6 +99,8 @@ app.use('/api/payouts', apiLimiter, payoutRoutes);
 app.use('/api/fraud', apiLimiter, fraudRoutes);
 app.use('/api/ranks', apiLimiter, rankRoutes);
 app.use('/api/team', apiLimiter, teamRoutes);
+app.use('/api/notifications', apiLimiter, notificationRoutes);
+app.use('/api/webhooks', apiLimiter, webhookRoutes);
 
 // ============================================
 // FRONTEND ROUTES

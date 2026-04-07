@@ -1,4 +1,5 @@
 const db = require('../models/db');
+const { Notify } = require('./notifications');
 
 // Evalúa si un agente califica para subir de rango
 // Se llama después de cada conversión y se puede llamar en batch
@@ -73,6 +74,11 @@ async function evaluateRankUp(affiliateId, companyId) {
                 [companyId, affiliateId, currentRank, newRank,
                  `Auto-promotion: ${personalSales} personal sales, ${teamSales} team sales, ${directRecruits} recruits`]
             );
+
+            // Notificar al agente
+            const oldRankData = ranks.find(r => r.rank_number === currentRank);
+            const newRankData = ranks.find(r => r.rank_number === newRank);
+            Notify.rankPromotion(companyId, affiliateId, oldRankData?.name || `Rank ${currentRank}`, newRankData?.name || `Rank ${newRank}`);
 
             return { promoted: true, oldRank: currentRank, newRank, affiliateId };
         }
