@@ -106,6 +106,22 @@
         <h3>Your Coupon Codes</h3>
         <p style="color:#94a3b8;font-size:13px" id="couponList">No coupons assigned yet.</p>
     </div>
+
+    <!-- TEAM SECTION -->
+    <div class="link-box" id="teamSection">
+        <h3 style="margin-bottom:15px">My Team</h3>
+        <div class="stats-grid" id="teamStats" style="margin-bottom:20px"></div>
+        <h4 style="color:#94a3b8;margin-bottom:10px">Team by Level</h4>
+        <table id="teamLevelTable" style="width:100%;border-collapse:collapse;margin-bottom:20px">
+            <thead><tr style="border-bottom:1px solid #334155"><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Level</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Members</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Active</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Revenue</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Commission</th></tr></thead>
+            <tbody></tbody>
+        </table>
+        <h4 style="color:#94a3b8;margin-bottom:10px">Top Performers</h4>
+        <table id="teamTopTable" style="width:100%;border-collapse:collapse">
+            <thead><tr style="border-bottom:1px solid #334155"><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Name</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Rank</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Conversions</th><th style="text-align:left;padding:8px;color:#64748b;font-size:12px">Revenue</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
 </div>
 
 <script>
@@ -128,7 +144,9 @@ async function affLogin(){
 }
 
 async function affRegister(){
-    const res=await fetch(API+'/api/auth/affiliate/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:document.getElementById('regFirst').value,last_name:document.getElementById('regLast').value,email:document.getElementById('regEmail').value,password:document.getElementById('regPass').value,company_name:document.getElementById('regCompany').value,phone:document.getElementById('regPhone').value,website:document.getElementById('regWebsite').value,company_id:1})});
+    const urlParams=new URLSearchParams(window.location.search);
+    const parentRef=urlParams.get('ref')||null;
+    const res=await fetch(API+'/api/auth/affiliate/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({first_name:document.getElementById('regFirst').value,last_name:document.getElementById('regLast').value,email:document.getElementById('regEmail').value,password:document.getElementById('regPass').value,company_name:document.getElementById('regCompany').value,phone:document.getElementById('regPhone').value,website:document.getElementById('regWebsite').value,company_id:1,parent_ref_id:parentRef})});
     const d=await res.json();
     if(d.ref_id){document.getElementById('affSuccess').textContent='Registered! Your ID: '+d.ref_id+'. Waiting for admin approval.';showTab('login')}
     else document.getElementById('affError').textContent=d.error||'Registration failed';
@@ -148,12 +166,14 @@ async function showPortal(){
     try{
         const res=await fetch(API+'/api/affiliates/'+decoded.id+'/stats',{headers:{'Authorization':'Bearer '+affToken}});
         const s=await res.json();
+        document.getElementById('st_balance').textContent='$'+Number(s.balance||0).toFixed(2);
         document.getElementById('st_clicks').textContent=s.clicks?.total||0;
         document.getElementById('st_conv').textContent=s.conversions?.total||0;
         document.getElementById('st_rev').textContent='$'+Number(s.conversions?.revenue||0).toFixed(2);
         document.getElementById('st_comm').textContent='$'+Number(s.conversions?.commission||0).toFixed(2);
         document.getElementById('st_rate').textContent=s.conversion_rate||'0%';
     }catch(e){}
+    loadTeam();
 }
 
 function updateLink(){
@@ -164,6 +184,33 @@ function updateLink(){
     if(deep)url+='&deep='+encodeURIComponent(deep);
     document.getElementById('trackingLink').textContent=url;
 }
+
+async function loadTeam(){
+    const decoded=JSON.parse(atob(affToken.split('.')[1]));
+    try{
+        const ts=await fetch(API+'/api/team/'+decoded.id+'/stats',{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
+        document.getElementById('teamStats').innerHTML=`
+            <div class="stat-card"><div class="label">My Rank</div><div class="value purple">${ts.personal?.rank||1}</div></div>
+            <div class="stat-card"><div class="label">Direct Recruits</div><div class="value blue">${ts.direct_recruits?.active||0}</div></div>
+            <div class="stat-card"><div class="label">Total Team</div><div class="value blue">${ts.team_totals?.total_members||0}</div></div>
+            <div class="stat-card"><div class="label">Team Revenue</div><div class="value green">$${Number(ts.team_totals?.team_revenue||0).toFixed(2)}</div></div>
+            <div class="stat-card"><div class="label">Override Earnings</div><div class="value green">$${Number(ts.mlm_earnings?.total||0).toFixed(2)}</div></div>`;
+        const levels=ts.levels||[];
+        document.querySelector('#teamLevelTable tbody').innerHTML=levels.map(l=>`<tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px">Level ${l.level}</td><td style="padding:8px">${l.members}</td>
+            <td style="padding:8px">${l.active_members}</td><td style="padding:8px">$${Number(l.total_revenue||0).toFixed(2)}</td>
+            <td style="padding:8px">$${Number(l.total_commission||0).toFixed(2)}</td>
+        </tr>`).join('')||'<tr><td colspan="5" style="padding:8px;color:#64748b">No team members yet</td></tr>';
+
+        const top=await fetch(API+'/api/team/'+decoded.id+'/top?limit=5',{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
+        document.querySelector('#teamTopTable tbody').innerHTML=top.map(t=>`<tr style="border-bottom:1px solid #1e293b">
+            <td style="padding:8px">${esc(t.first_name||'')} ${esc(t.last_name||'')}</td>
+            <td style="padding:8px"><span style="color:${t.rank_color||'#64748b'}">${esc(t.rank_name||'Rank '+t.rank)}</span></td>
+            <td style="padding:8px">${t.total_conversions}</td><td style="padding:8px">$${Number(t.total_revenue||0).toFixed(2)}</td>
+        </tr>`).join('')||'<tr><td colspan="4" style="padding:8px;color:#64748b">No team members yet</td></tr>';
+    }catch(e){console.error('Team load error:',e)}
+}
+function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
 
 function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent);alert('Copied!')}
 function affLogout(){localStorage.removeItem('mr_aff_token');affToken=null;location.reload()}

@@ -12,12 +12,20 @@ const authRoutes = require('./routes/auth');
 const couponRoutes = require('./routes/coupons');
 const payoutRoutes = require('./routes/payouts');
 const fraudRoutes = require('./routes/fraud');
+const rankRoutes = require('./routes/ranks');
+const teamRoutes = require('./routes/team');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : undefined;
+app.use(cors(allowedOrigins ? {
+    origin: allowedOrigins,
+    credentials: true
+} : undefined));
 app.use(express.json());
 app.use(cookieParser());
 
@@ -38,6 +46,8 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/payouts', payoutRoutes);
 app.use('/api/fraud', fraudRoutes);
+app.use('/api/ranks', rankRoutes);
+app.use('/api/team', teamRoutes);
 
 // ============================================
 // FRONTEND ROUTES

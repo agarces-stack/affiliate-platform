@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
 const { authMiddleware } = require('../middleware/auth');
+const { checkConversionFraud } = require('../services/fraud');
 
 // ============================================
 // POSTBACK - Registrar conversion
@@ -70,40 +71,74 @@ router.get('/', async (req, res) => {
         const campResult = await db.query('SELECT * FROM campaigns WHERE id = $1', [camp_id]);
         const campaign = campResult.rows[0];
 
-        // Calcular comision
+        // Calcular comisión usando sistema de rangos
         let commission = 0;
-        let commission_type = 'cpa';
+        let commission_type = 'rank_based';
 
         if (campaign) {
-            // Verificar override por afiliado
-            const overrideResult = await db.query(
-                'SELECT * FROM campaign_affiliates WHERE campaign_id = $1 AND affiliate_id = $2',
-                [camp_id, affiliate_id]
+            // Buscar rango del agente y su comisión configurada
+            const affRank = await db.query(
+                'SELECT rank FROM affiliates WHERE id = $1', [affiliate_id]
             );
-            const override = overrideResult.rows[0];
+            const agentRank = affRank.rows[0]?.rank || 1;
 
-            const commType = override?.custom_commission_type || campaign.commission_type;
-            const commAmount = override?.custom_commission_amount || campaign.commission_amount;
-            const commPercent = override?.custom_commission_percent || campaign.commission_percent;
+            const rankComm = await db.query(
+                `SELECT rc.* FROM rank_commissions rc
+                 JOIN ranks r ON r.id = rc.rank_id
+                 WHERE r.company_id = $1 AND r.rank_number = $2 AND rc.campaign_id = $3`,
+                [company_id, agentRank, camp_id]
+            );
 
-            commission_type = commType;
+            if (rankComm.rows.length > 0) {
+                // Comisión basada en rango: % del monto + fija
+                const rc = rankComm.rows[0];
+                const percentComm = (parseFloat(amount) || 0) * (parseFloat(rc.direct_commission_percent) || 0) / 100;
+                const fixedComm = parseFloat(rc.direct_commission_fixed) || 0;
+                commission = percentComm + fixedComm;
+            } else {
+                // Fallback: usar comisión de la campaña (retrocompatibilidad)
+                const overrideResult = await db.query(
+                    'SELECT * FROM campaign_affiliates WHERE campaign_id = $1 AND affiliate_id = $2',
+                    [camp_id, affiliate_id]
+                );
+                const override = overrideResult.rows[0];
 
-            switch (commType) {
-                case 'cpa':
-                    commission = commAmount || 0;
-                    break;
-                case 'revshare':
-                    commission = (parseFloat(amount) || 0) * (commPercent || 0) / 100;
-                    break;
-                case 'hybrid':
-                    commission = (commAmount || 0) + ((parseFloat(amount) || 0) * (commPercent || 0) / 100);
-                    break;
-                default:
-                    commission = commAmount || 0;
+                const commType = override?.custom_commission_type || campaign.commission_type;
+                const commAmount = override?.custom_commission_amount || campaign.commission_amount;
+                const commPercent = override?.custom_commission_percent || campaign.commission_percent;
+                commission_type = commType;
+
+                switch (commType) {
+                    case 'cpa':
+                        commission = commAmount || 0;
+                        break;
+                    case 'revshare':
+                        commission = (parseFloat(amount) || 0) * (commPercent || 0) / 100;
+                        break;
+                    case 'hybrid':
+                        commission = (commAmount || 0) + ((parseFloat(amount) || 0) * (commPercent || 0) / 100);
+                        break;
+                    default:
+                        commission = commAmount || 0;
+                }
             }
         }
 
         const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
+
+        // FRAUD DETECTION - verificar antes de procesar
+        const fraudCheck = await checkConversionFraud({
+            ip,
+            clickId: click_id || null,
+            affiliateId: affiliate_id,
+            companyId: company_id,
+            amount: parseFloat(amount) || 0,
+            orderId: order_id || null
+        });
+        if (fraudCheck.isFraud) {
+            console.log(`[FRAUD BLOCKED] Conversion from IP: ${ip}, Affiliate: ${affiliate_id}`);
+            return res.status(403).json({ error: 'Conversion blocked by fraud detection' });
+        }
 
         // Verificar duplicado por order_id
         if (order_id) {
@@ -116,35 +151,46 @@ router.get('/', async (req, res) => {
             }
         }
 
-        // Insertar conversion
-        const convResult = await db.query(
-            `INSERT INTO conversions (company_id, campaign_id, affiliate_id, click_id,
-             order_id, amount, commission, commission_type, customer_email, customer_name,
-             customer_id, is_new_customer, ip_address, tracking_method, status)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-             RETURNING id`,
-            [company_id, camp_id, affiliate_id, click_id || null,
-             order_id || null, parseFloat(amount) || 0, commission, commission_type,
-             email || null, first_name || null, customer_id || null,
-             new_customer === '1' || new_customer === 'true',
-             ip, tracking_method, 'pending']
-        );
+        // Insertar conversion y actualizar balance en transacción atómica
+        const client = await db.pool.connect();
+        let convResult;
+        try {
+            await client.query('BEGIN');
 
-        // Actualizar totales del afiliado
-        await db.query(
-            `UPDATE affiliates SET
-             total_conversions = total_conversions + 1,
-             total_revenue = total_revenue + $1,
-             total_commission = total_commission + $2,
-             balance = balance + $2
-             WHERE id = $3`,
-            [parseFloat(amount) || 0, commission, affiliate_id]
-        );
+            convResult = await client.query(
+                `INSERT INTO conversions (company_id, campaign_id, affiliate_id, click_id,
+                 order_id, amount, commission, commission_type, customer_email, customer_name,
+                 customer_id, is_new_customer, ip_address, tracking_method, status)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+                 RETURNING id`,
+                [company_id, camp_id, affiliate_id, click_id || null,
+                 order_id || null, parseFloat(amount) || 0, commission, commission_type,
+                 email || null, first_name || null, customer_id || null,
+                 new_customer === '1' || new_customer === 'true',
+                 ip, tracking_method, fraudCheck.shouldFlag ? 'flagged' : 'pending']
+            );
 
-        // Calcular comisiones MLM si aplica
-        if (campaign?.mlm_enabled) {
-            await calculateMLMCommissions(convResult.rows[0].id, affiliate_id, commission, campaign);
+            // Actualizar totales del afiliado
+            await client.query(
+                `UPDATE affiliates SET
+                 total_conversions = total_conversions + 1,
+                 total_revenue = total_revenue + $1,
+                 total_commission = total_commission + $2,
+                 balance = balance + $2
+                 WHERE id = $3`,
+                [parseFloat(amount) || 0, commission, affiliate_id]
+            );
+
+            await client.query('COMMIT');
+        } catch (txErr) {
+            await client.query('ROLLBACK');
+            throw txErr;
+        } finally {
+            client.release();
         }
+
+        // Calcular comisiones de override (cadena hacia arriba)
+        await calculateOverrideCommissions(convResult.rows[0].id, affiliate_id, company_id, camp_id, parseFloat(amount) || 0);
 
         res.json({
             status: 'ok',
@@ -159,41 +205,88 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Calcular comisiones MLM (multi-nivel)
-async function calculateMLMCommissions(conversionId, affiliateId, baseCommission, campaign) {
+// Calcular comisiones de override (sube por la cadena de padres)
+// Cada padre recibe según su rango: override % del monto + override fijo
+// También soporta override_by_level (config por nivel de profundidad)
+async function calculateOverrideCommissions(conversionId, affiliateId, companyId, campaignId, saleAmount) {
     try {
-        const mlmLevels = campaign.mlm_commissions || [];
-        let currentAffiliateId = affiliateId;
+        // Obtener max recruitment depth de la empresa
+        const compResult = await db.query(
+            'SELECT max_recruitment_depth FROM companies WHERE id = $1', [companyId]
+        );
+        const maxDepth = compResult.rows[0]?.max_recruitment_depth || 10;
 
-        for (const levelConfig of mlmLevels) {
+        let currentAffiliateId = affiliateId;
+        let level = 1;
+
+        while (level <= maxDepth) {
             // Buscar parent
             const parentResult = await db.query(
-                'SELECT id, parent_affiliate_id FROM affiliates WHERE id = $1',
+                'SELECT id, parent_affiliate_id, rank FROM affiliates WHERE id = $1',
                 [currentAffiliateId]
             );
-            const parent = parentResult.rows[0];
-            if (!parent?.parent_affiliate_id) break;
+            const current = parentResult.rows[0];
+            if (!current?.parent_affiliate_id) break;
 
-            const mlmCommission = baseCommission * (levelConfig.percent || 0) / 100;
+            const parentId = current.parent_affiliate_id;
 
-            if (mlmCommission > 0) {
+            // Obtener rango del parent
+            const parentData = await db.query(
+                'SELECT id, rank FROM affiliates WHERE id = $1', [parentId]
+            );
+            if (parentData.rows.length === 0) break;
+            const parentRank = parentData.rows[0].rank || 1;
+
+            // Buscar comisión de override para el rango del parent en esta campaña
+            const rankComm = await db.query(
+                `SELECT rc.* FROM rank_commissions rc
+                 JOIN ranks r ON r.id = rc.rank_id
+                 WHERE r.company_id = $1 AND r.rank_number = $2 AND rc.campaign_id = $3`,
+                [companyId, parentRank, campaignId]
+            );
+
+            let overrideCommission = 0;
+
+            if (rankComm.rows.length > 0) {
+                const rc = rankComm.rows[0];
+
+                // Verificar si hay override específico por nivel de profundidad
+                const byLevel = rc.override_by_level || [];
+                const levelConfig = byLevel.find(l => l.level === level);
+
+                if (levelConfig) {
+                    // Override específico para este nivel
+                    const percentComm = saleAmount * (parseFloat(levelConfig.percent) || 0) / 100;
+                    const fixedComm = parseFloat(levelConfig.fixed) || 0;
+                    overrideCommission = percentComm + fixedComm;
+                } else {
+                    // Override general del rango
+                    const percentComm = saleAmount * (parseFloat(rc.override_commission_percent) || 0) / 100;
+                    const fixedComm = parseFloat(rc.override_commission_fixed) || 0;
+                    overrideCommission = percentComm + fixedComm;
+                }
+            }
+
+            if (overrideCommission > 0) {
+                // Registrar comisión MLM
                 await db.query(
                     `INSERT INTO mlm_commissions (conversion_id, affiliate_id, source_affiliate_id, level, commission)
                      VALUES ($1, $2, $3, $4, $5)`,
-                    [conversionId, parent.parent_affiliate_id, affiliateId, levelConfig.level, mlmCommission]
+                    [conversionId, parentId, affiliateId, level, overrideCommission]
                 );
 
                 // Actualizar balance del parent
                 await db.query(
                     'UPDATE affiliates SET balance = balance + $1, total_commission = total_commission + $1 WHERE id = $2',
-                    [mlmCommission, parent.parent_affiliate_id]
+                    [overrideCommission, parentId]
                 );
             }
 
-            currentAffiliateId = parent.parent_affiliate_id;
+            currentAffiliateId = parentId;
+            level++;
         }
     } catch (err) {
-        console.error('MLM commission error:', err);
+        console.error('Override commission error:', err);
     }
 }
 

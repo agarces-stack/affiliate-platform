@@ -73,6 +73,7 @@
         <a onclick="showSection('conversions')">Conversions</a>
         <a onclick="showSection('coupons')">Coupons</a>
         <a onclick="showSection('payouts')">Payouts</a>
+        <a onclick="showSection('ranks')">Ranks</a>
         <a onclick="showSection('fraud')">Fraud Detection</a>
         <a onclick="showSection('pixel')">Tracking Pixel</a>
         <a class="logout" onclick="logout()">Logout</a>
@@ -92,7 +93,7 @@
         <div class="section" id="sec-affiliates">
             <div class="top-bar"><h1>Affiliates</h1><button class="btn btn-blue" onclick="showAddAffiliateModal()">+ Add Affiliate</button></div>
             <div style="margin-bottom:15px"><button class="btn btn-gray" onclick="exportCSV('affiliates')">Export CSV</button></div>
-            <table id="affTable"><thead><tr><th>ID</th><th>Ref ID</th><th>Name</th><th>Email</th><th>Status</th><th>Clicks</th><th>Conv.</th><th>Balance</th><th>Actions</th></tr></thead><tbody></tbody></table>
+            <table id="affTable"><thead><tr><th>ID</th><th>Ref ID</th><th>Name</th><th>Email</th><th>Rank</th><th>Status</th><th>Clicks</th><th>Conv.</th><th>Balance</th><th>Actions</th></tr></thead><tbody></tbody></table>
         </div>
 
         <!-- CAMPAIGNS -->
@@ -118,6 +119,19 @@
         <div class="section" id="sec-payouts">
             <div class="top-bar"><h1>Payouts</h1><button class="btn btn-blue" onclick="showAddPayoutModal()">+ Create Payout</button></div>
             <table id="payTable"><thead><tr><th>ID</th><th>Affiliate</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- RANKS -->
+        <div class="section" id="sec-ranks">
+            <div class="top-bar"><h1>Ranks & Commissions</h1></div>
+            <p style="color:#94a3b8;margin-bottom:20px">Configure rank names and commission structures. Ranks 1-10, each with custom name and override settings.</p>
+            <table id="rankTable"><thead><tr><th>#</th><th>Name</th><th>Color</th><th>Can Recruit</th><th>Max Depth</th><th>Actions</th></tr></thead><tbody></tbody></table>
+            <h2 style="margin:25px 0 15px">Commission Matrix</h2>
+            <p style="color:#94a3b8;margin-bottom:15px">Select a campaign to configure commissions per rank:</p>
+            <select id="rankCampaignSelect" onchange="loadRankCommissions()" style="width:100%;max-width:400px;padding:10px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;margin-bottom:15px;font-size:14px">
+                <option value="">-- Select Campaign --</option>
+            </select>
+            <table id="rankCommTable" style="display:none"><thead><tr><th>Rank</th><th>Direct %</th><th>Direct Fixed $</th><th>Override %</th><th>Override Fixed $</th><th>Actions</th></tr></thead><tbody></tbody></table>
         </div>
 
         <!-- FRAUD DETECTION -->
@@ -202,13 +216,14 @@ async function loadOverview(){
         <div class="stat-card"><div class="label">Today Conversions</div><div class="value yellow">${s.today_conversions}</div></div>
         <div class="stat-card"><div class="label">Pending Commission</div><div class="value purple">$${N(s.pending_commission)}</div></div>`;
     const top=await api('/api/reports/top-affiliates?limit=10');
-    document.querySelector('#topAffTable tbody').innerHTML=top.map(a=>`<tr><td>${a.first_name||''} ${a.last_name||''}</td><td>${a.email}</td><td>${a.total_clicks}</td><td>${a.total_conversions}</td><td>$${N(a.total_revenue)}</td><td>$${N(a.total_commission)}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#64748b">No affiliates yet</td></tr>';
+    document.querySelector('#topAffTable tbody').innerHTML=top.map(a=>`<tr><td>${E(a.first_name)} ${E(a.last_name)}</td><td>${E(a.email)}</td><td>${a.total_clicks}</td><td>${a.total_conversions}</td><td>$${N(a.total_revenue)}</td><td>$${N(a.total_commission)}</td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#64748b">No affiliates yet</td></tr>';
     loadChart();
 }
 
 async function loadChart(){
     try{
-        const data=await api('/api/reports/by-date?start_date=2020-01-01&end_date=2030-01-01&group_by=day');
+        const end=new Date().toISOString().split('T')[0];const start=new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+        const data=await api('/api/reports/by-date?start_date='+start+'&end_date='+end+'&group_by=day');
         const ctx=document.getElementById('chartRevenue').getContext('2d');
         if(chartInstance)chartInstance.destroy();
         chartInstance=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.date),datasets:[{label:'Revenue ($)',data:data.map(d=>d.revenue),backgroundColor:'#3b82f6'},{label:'Commission ($)',data:data.map(d=>d.commission),backgroundColor:'#8b5cf6'}]},options:{responsive:true,plugins:{legend:{labels:{color:'#94a3b8'}}},scales:{x:{ticks:{color:'#64748b'}},y:{ticks:{color:'#64748b'}}}}});
@@ -217,22 +232,26 @@ async function loadChart(){
 
 async function loadAffiliates(){
     const d=await api('/api/affiliates');const a=d.affiliates||d;
-    document.querySelector('#affTable tbody').innerHTML=a.map(x=>`<tr>
-        <td>${x.id}</td><td><code style="color:#3b82f6">${x.ref_id}</code></td><td>${x.first_name||''} ${x.last_name||''}</td><td>${x.email}</td>
-        <td><span class="badge ${x.status==='approved'?'badge-green':x.status==='pending'?'badge-yellow':'badge-red'}">${x.status}</span></td>
+    // Load ranks for display
+    let ranksMap={};try{const rnks=await api('/api/ranks');rnks.forEach(r=>ranksMap[r.rank_number]=r)}catch(e){}
+    document.querySelector('#affTable tbody').innerHTML=a.map(x=>{const rk=ranksMap[x.rank||1]||{name:'Rank '+(x.rank||1),color:'#64748b'};return`<tr>
+        <td>${x.id}</td><td><code style="color:#3b82f6">${E(x.ref_id)}</code></td><td>${E(x.first_name)} ${E(x.last_name)}</td><td>${E(x.email)}</td>
+        <td><span style="background:${rk.color}22;color:${rk.color};padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600">${E(rk.name)}</span>
+        <button class="btn btn-gray" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="showAssignRankModal(${x.id},'${E(x.first_name)}',${x.rank||1})">Change</button></td>
+        <td><span class="badge ${x.status==='approved'?'badge-green':x.status==='pending'?'badge-yellow':'badge-red'}">${E(x.status)}</span></td>
         <td>${x.total_clicks}</td><td>${x.total_conversions}</td><td>$${N(x.balance)}</td>
         <td>${x.status==='pending'?`<button class="btn btn-green" onclick="updateAff(${x.id},'approved')">Approve</button>`:''}${x.status==='approved'?`<button class="btn btn-red" onclick="updateAff(${x.id},'suspended')">Suspend</button>`:''}</td>
-    </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;color:#64748b">No affiliates</td></tr>';
+    </tr>`}).join('')||'<tr><td colspan="10" style="text-align:center;color:#64748b">No affiliates</td></tr>';
 }
 async function updateAff(id,status){await api('/api/affiliates/'+id+'/status',{method:'PATCH',body:JSON.stringify({status})});loadAffiliates()}
 
 async function loadCampaigns(){
     const c=await api('/api/campaigns');
     document.querySelector('#campTable tbody').innerHTML=c.map(x=>`<tr>
-        <td>${x.id}</td><td>${x.name}</td><td><a href="${x.url}" target="_blank" style="color:#3b82f6">${x.url.substring(0,35)}...</a></td>
-        <td>${x.commission_type.toUpperCase()}</td><td>${x.commission_type==='cpa'?'$'+N(x.commission_amount):x.commission_type==='revshare'?N(x.commission_percent)+'%':'$'+N(x.commission_amount)+' + '+N(x.commission_percent)+'%'}</td>
+        <td>${x.id}</td><td>${E(x.name)}</td><td><a href="${E(x.url)}" target="_blank" style="color:#3b82f6">${E(x.url.substring(0,35))}...</a></td>
+        <td>${E(x.commission_type).toUpperCase()}</td><td>${x.commission_type==='cpa'?'$'+N(x.commission_amount):x.commission_type==='revshare'?N(x.commission_percent)+'%':'$'+N(x.commission_amount)+' + '+N(x.commission_percent)+'%'}</td>
         <td>${x.mlm_enabled?'<span class="badge badge-green">Yes</span>':'No'}</td>
-        <td><span class="badge badge-green">${x.status}</span></td>
+        <td><span class="badge badge-green">${E(x.status)}</span></td>
     </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No campaigns</td></tr>';
 }
 
@@ -245,7 +264,7 @@ async function loadConversions(){
 async function loadCoupons(){
     const c=await api('/api/coupons');
     document.querySelector('#coupTable tbody').innerHTML=c.map(x=>`<tr>
-        <td><code style="color:#22c55e">${x.code}</code></td><td>${x.affiliate_email||'-'}</td><td>${x.campaign_name||'-'}</td>
+        <td><code style="color:#22c55e">${E(x.code)}</code></td><td>${E(x.affiliate_email)||'-'}</td><td>${E(x.campaign_name)||'-'}</td>
         <td>${x.discount_type==='percent'?x.discount_value+'%':'$'+N(x.discount_value)}</td><td>${x.usage_count}${x.max_usage?'/'+x.max_usage:''}</td>
         <td><span class="badge ${x.is_active?'badge-green':'badge-red'}">${x.is_active?'Active':'Inactive'}</span></td>
         <td>${x.is_active?`<button class="btn btn-red" onclick="deactivateCoupon(${x.id})">Deactivate</button>`:''}</td>
@@ -256,8 +275,8 @@ async function deactivateCoupon(id){await api('/api/coupons/'+id,{method:'DELETE
 async function loadPayouts(){
     const p=await api('/api/payouts');
     document.querySelector('#payTable tbody').innerHTML=p.map(x=>`<tr>
-        <td>${x.id}</td><td>${x.affiliate_email||x.ref_id||'-'}</td><td>$${N(x.amount)}</td><td>${x.payment_method||'-'}</td>
-        <td><span class="badge ${x.status==='completed'?'badge-green':x.status==='pending'?'badge-yellow':'badge-red'}">${x.status}</span></td>
+        <td>${x.id}</td><td>${E(x.affiliate_email)||E(x.ref_id)||'-'}</td><td>$${N(x.amount)}</td><td>${E(x.payment_method)||'-'}</td>
+        <td><span class="badge ${x.status==='completed'?'badge-green':x.status==='pending'?'badge-yellow':'badge-red'}">${E(x.status)}</span></td>
         <td>${new Date(x.created_at).toLocaleDateString()}</td>
         <td>${x.status==='pending'?`<button class="btn btn-green" onclick="completePayout(${x.id})">Mark Paid</button>`:''}</td>
     </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No payouts</td></tr>';
@@ -269,7 +288,7 @@ function showSection(name){
     document.getElementById('sec-'+name).classList.add('active');
     document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
     if(event&&event.target)event.target.classList.add('active');
-    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'fraud':loadFraud();break}
+    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'ranks':loadRanks();break;case'fraud':loadFraud();break}
 }
 
 // MODALS
@@ -402,17 +421,17 @@ async function loadFraud(){
 
     const suspicious=await api('/api/fraud/suspicious-ips');
     document.querySelector('#suspiciousTable tbody').innerHTML=suspicious.map(x=>`<tr>
-        <td><code>${x.ip}</code></td><td>${x.alert_count}</td>
-        <td><span class="badge ${x.max_severity==='critical'||x.max_severity==='high'?'badge-red':'badge-yellow'}">${x.max_severity}</span></td>
+        <td><code>${E(x.ip)}</code></td><td>${x.alert_count}</td>
+        <td><span class="badge ${x.max_severity==='critical'||x.max_severity==='high'?'badge-red':'badge-yellow'}">${E(x.max_severity)}</span></td>
         <td>${new Date(x.last_alert).toLocaleString()}</td>
-        <td><button class="btn btn-red" onclick="blockIP('${x.ip}','Auto-flagged: ${x.alert_count} alerts')">Block</button></td>
+        <td><button class="btn btn-red" onclick="blockIP('${E(x.ip)}','Auto-flagged: ${x.alert_count} alerts')">Block</button></td>
     </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#64748b">No suspicious IPs</td></tr>';
 
     const blocked=await api('/api/fraud/blocked-ips');
     document.querySelector('#blockedTable tbody').innerHTML=blocked.map(x=>`<tr>
-        <td><code>${x.ip_address}</code></td><td>${x.reason||'-'}</td><td>${x.blocked_by||'-'}</td>
+        <td><code>${E(x.ip_address)}</code></td><td>${E(x.reason)||'-'}</td><td>${E(x.blocked_by)||'-'}</td>
         <td>${new Date(x.created_at).toLocaleString()}</td>
-        <td>${x.is_active?`<button class="btn btn-green" onclick="unblockIP('${x.ip_address}')">Unblock</button>`:'<span class="badge badge-yellow">Inactive</span>'}</td>
+        <td>${x.is_active?`<button class="btn btn-green" onclick="unblockIP('${E(x.ip_address)}')">Unblock</button>`:'<span class="badge badge-yellow">Inactive</span>'}</td>
     </tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:#64748b">No blocked IPs</td></tr>';
 
     const logs=await api('/api/fraud/logs?limit=50');
@@ -420,9 +439,9 @@ async function loadFraud(){
         const details=typeof x.details==='string'?JSON.parse(x.details):x.details;
         return`<tr>
         <td>${new Date(x.created_at).toLocaleString()}</td>
-        <td>${x.affiliate_email||x.ref_id||'-'}</td>
-        <td><code>${x.rule}</code></td>
-        <td><span class="badge ${x.severity==='critical'||x.severity==='high'?'badge-red':x.severity==='medium'?'badge-yellow':'badge-green'}">${x.severity}</span></td>
+        <td>${E(x.affiliate_email)||E(x.ref_id)||'-'}</td>
+        <td><code>${E(x.rule)}</code></td>
+        <td><span class="badge ${x.severity==='critical'||x.severity==='high'?'badge-red':x.severity==='medium'?'badge-yellow':'badge-green'}">${E(x.severity)}</span></td>
         <td style="font-size:12px">${JSON.stringify(details).substring(0,60)}</td>
         <td><span class="badge ${x.action_taken==='blocked'?'badge-red':x.action_taken==='flagged'?'badge-yellow':'badge-green'}">${x.action_taken}</span></td>
     </tr>`}).join('')||'<tr><td colspan="6" style="text-align:center;color:#64748b">No fraud alerts</td></tr>';
@@ -436,7 +455,79 @@ function showBlockIPModal(){
         <div class="modal-actions"><button class="btn btn-red" onclick="blockIP(document.getElementById('block_ip').value,document.getElementById('block_reason').value);closeModal()">Block IP</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
 }
 
+// RANKS
+async function loadRanks(){
+    const ranks=await api('/api/ranks');
+    document.querySelector('#rankTable tbody').innerHTML=ranks.map(x=>`<tr>
+        <td><span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:${E(x.color)};text-align:center;line-height:24px;font-weight:700;font-size:12px;color:#fff">${x.rank_number}</span></td>
+        <td>${E(x.name)}</td>
+        <td><span style="display:inline-block;width:20px;height:20px;border-radius:4px;background:${E(x.color)}"></span> ${E(x.color)}</td>
+        <td>${x.can_recruit?'<span class="badge badge-green">Yes</span>':'<span class="badge badge-red">No</span>'}</td>
+        <td>${x.max_recruit_depth||'Unlimited'}</td>
+        <td><button class="btn btn-blue" onclick="showEditRankModal(${x.rank_number},'${E(x.name)}','${E(x.color)}',${x.can_recruit},${x.max_recruit_depth||0})">Edit</button></td>
+    </tr>`).join('');
+    // Load campaigns for commission matrix
+    const camps=await api('/api/campaigns');
+    const sel=document.getElementById('rankCampaignSelect');
+    sel.innerHTML='<option value="">-- Select Campaign --</option>'+camps.map(c=>`<option value="${c.id}">${E(c.name)}</option>`).join('');
+}
+
+function showEditRankModal(num,name,color,canRecruit,maxDepth){
+    openModal(`<h2>Edit Rank ${num}</h2>
+        <label>Name</label><input id="rk_name" value="${name}">
+        <label>Color</label><input id="rk_color" type="color" value="${color}">
+        <label>Can Recruit</label><select id="rk_recruit"><option value="true" ${canRecruit?'selected':''}>Yes</option><option value="false" ${!canRecruit?'selected':''}>No</option></select>
+        <label>Max Recruit Depth (0 = unlimited)</label><input id="rk_depth" type="number" value="${maxDepth}" min="0">
+        <div class="modal-actions"><button class="btn btn-blue" onclick="saveRank(${num})">Save</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function saveRank(num){
+    await api('/api/ranks/'+num,{method:'PUT',body:JSON.stringify({name:document.getElementById('rk_name').value,color:document.getElementById('rk_color').value,can_recruit:document.getElementById('rk_recruit').value==='true',max_recruit_depth:parseInt(document.getElementById('rk_depth').value)||0})});
+    closeModal();loadRanks();
+}
+
+async function loadRankCommissions(){
+    const campId=document.getElementById('rankCampaignSelect').value;
+    if(!campId){document.getElementById('rankCommTable').style.display='none';return}
+    document.getElementById('rankCommTable').style.display='table';
+    const data=await api('/api/ranks/commissions/'+campId);
+    document.querySelector('#rankCommTable tbody').innerHTML=data.map(x=>`<tr>
+        <td><span style="color:${E(x.color)};font-weight:700">${E(x.name)}</span></td>
+        <td>${N(x.direct_commission_percent||0)}%</td>
+        <td>$${N(x.direct_commission_fixed||0)}</td>
+        <td>${N(x.override_commission_percent||0)}%</td>
+        <td>$${N(x.override_commission_fixed||0)}</td>
+        <td><button class="btn btn-blue" onclick="showEditCommModal(${x.rank_number},'${E(x.name)}',${campId},${x.direct_commission_percent||0},${x.direct_commission_fixed||0},${x.override_commission_percent||0},${x.override_commission_fixed||0})">Edit</button></td>
+    </tr>`).join('');
+}
+
+function showEditCommModal(rankNum,rankName,campId,dp,df,op,of){
+    openModal(`<h2>Commission: ${rankName}</h2>
+        <p style="color:#94a3b8;margin-bottom:15px">Set direct and override commissions for this rank.</p>
+        <label>Direct Commission %</label><input id="rc_dp" type="number" value="${dp}" step="0.01" min="0">
+        <label>Direct Commission Fixed $</label><input id="rc_df" type="number" value="${df}" step="0.01" min="0">
+        <label>Override Commission % (on team sales)</label><input id="rc_op" type="number" value="${op}" step="0.01" min="0">
+        <label>Override Commission Fixed $ (on team sales)</label><input id="rc_of" type="number" value="${of}" step="0.01" min="0">
+        <div class="modal-actions"><button class="btn btn-blue" onclick="saveComm(${rankNum},${campId})">Save</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function saveComm(rankNum,campId){
+    await api('/api/ranks/'+rankNum+'/commissions/'+campId,{method:'PUT',body:JSON.stringify({direct_commission_percent:parseFloat(document.getElementById('rc_dp').value)||0,direct_commission_fixed:parseFloat(document.getElementById('rc_df').value)||0,override_commission_percent:parseFloat(document.getElementById('rc_op').value)||0,override_commission_fixed:parseFloat(document.getElementById('rc_of').value)||0})});
+    closeModal();loadRankCommissions();
+}
+
+async function showAssignRankModal(affId,name,currentRank){
+    let ranksHtml='';try{const rnks=await api('/api/ranks');ranksHtml=rnks.map(r=>`<option value="${r.rank_number}" ${r.rank_number===currentRank?'selected':''}>${r.rank_number}. ${E(r.name)}</option>`).join('')}catch(e){for(let i=1;i<=10;i++)ranksHtml+=`<option value="${i}" ${i===currentRank?'selected':''}>${i}</option>`}
+    openModal(`<h2>Change Rank: ${name}</h2>
+        <label>New Rank</label><select id="ar_rank">${ranksHtml}</select>
+        <label>Reason (optional)</label><input id="ar_reason" placeholder="Promotion, performance review, etc.">
+        <div class="modal-actions"><button class="btn btn-blue" onclick="assignRank(${affId})">Update Rank</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function assignRank(affId){
+    await api('/api/ranks/assign/'+affId,{method:'PATCH',body:JSON.stringify({rank_number:parseInt(document.getElementById('ar_rank').value),reason:document.getElementById('ar_reason').value})});
+    closeModal();loadAffiliates();
+}
+
 function N(v){return Number(v||0).toFixed(2)}
+function E(s){if(s==null)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
 </script>
 </body>
 </html>

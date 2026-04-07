@@ -20,6 +20,16 @@ async function migrate() {
         await pool.query(schema);
         console.log('Tables created!');
 
+        // Ejecutar migration de fraud (blocked_ips table)
+        const fraudMigration = fs.readFileSync(path.join(__dirname, 'migration_fraud.sql'), 'utf8');
+        await pool.query(fraudMigration);
+        console.log('Fraud tables created!');
+
+        // Ejecutar migration de rangos
+        const ranksMigration = fs.readFileSync(path.join(__dirname, 'migration_ranks.sql'), 'utf8');
+        await pool.query(ranksMigration);
+        console.log('Ranks tables created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`
