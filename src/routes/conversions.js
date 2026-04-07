@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../models/db');
 const { authMiddleware } = require('../middleware/auth');
 const { checkConversionFraud } = require('../services/fraud');
+const { evaluateRankUp } = require('../services/rank-evaluator');
 
 // ============================================
 // POSTBACK - Registrar conversion
@@ -192,6 +193,9 @@ router.get('/', async (req, res) => {
         // Calcular comisiones de override (cadena hacia arriba)
         await calculateOverrideCommissions(convResult.rows[0].id, affiliate_id, company_id, camp_id, parseFloat(amount) || 0);
 
+        // Evaluar ascenso de rango automático (no bloquea la respuesta)
+        evaluateRankUp(affiliate_id, company_id).catch(err => console.error('Rank eval error:', err));
+
         res.json({
             status: 'ok',
             conversion_id: convResult.rows[0].id,
@@ -206,15 +210,32 @@ router.get('/', async (req, res) => {
 });
 
 // Calcular comisiones de override (sube por la cadena de padres)
-// Cada padre recibe según su rango: override % del monto + override fijo
-// También soporta override_by_level (config por nivel de profundidad)
+// Soporta 2 modos:
+//   'fixed'      - Override fijo por rango (% + fijo configurado independiente)
+//   'difference' - Override por diferencia (estándar seguros: líder gana la diferencia entre su % y el del subordinado)
 async function calculateOverrideCommissions(conversionId, affiliateId, companyId, campaignId, saleAmount) {
     try {
-        // Obtener max recruitment depth de la empresa
+        // Obtener config de la empresa
         const compResult = await db.query(
-            'SELECT max_recruitment_depth FROM companies WHERE id = $1', [companyId]
+            'SELECT max_recruitment_depth, override_mode FROM companies WHERE id = $1', [companyId]
         );
         const maxDepth = compResult.rows[0]?.max_recruitment_depth || 10;
+        const overrideMode = compResult.rows[0]?.override_mode || 'fixed';
+
+        // Para modo 'difference', necesitamos el % del subordinado inmediato
+        let previousDirectPercent = 0;
+        if (overrideMode === 'difference') {
+            // Obtener el % directo del agente que hizo la venta
+            const sellerRank = await db.query('SELECT rank FROM affiliates WHERE id = $1', [affiliateId]);
+            const sellerRankNum = sellerRank.rows[0]?.rank || 1;
+            const sellerComm = await db.query(
+                `SELECT rc.direct_commission_percent FROM rank_commissions rc
+                 JOIN ranks r ON r.id = rc.rank_id
+                 WHERE r.company_id = $1 AND r.rank_number = $2 AND rc.campaign_id = $3`,
+                [companyId, sellerRankNum, campaignId]
+            );
+            previousDirectPercent = parseFloat(sellerComm.rows[0]?.direct_commission_percent) || 0;
+        }
 
         let currentAffiliateId = affiliateId;
         let level = 1;
@@ -237,7 +258,7 @@ async function calculateOverrideCommissions(conversionId, affiliateId, companyId
             if (parentData.rows.length === 0) break;
             const parentRank = parentData.rows[0].rank || 1;
 
-            // Buscar comisión de override para el rango del parent en esta campaña
+            // Buscar comisión configurada para el rango del parent
             const rankComm = await db.query(
                 `SELECT rc.* FROM rank_commissions rc
                  JOIN ranks r ON r.id = rc.rank_id
@@ -250,20 +271,40 @@ async function calculateOverrideCommissions(conversionId, affiliateId, companyId
             if (rankComm.rows.length > 0) {
                 const rc = rankComm.rows[0];
 
-                // Verificar si hay override específico por nivel de profundidad
-                const byLevel = rc.override_by_level || [];
-                const levelConfig = byLevel.find(l => l.level === level);
+                if (overrideMode === 'difference') {
+                    // ============================================
+                    // MODO DIFERENCIA (estándar seguros)
+                    // El parent gana: (su % directo - % del subordinado) * monto
+                    // Si la diferencia es 0 o negativa, no gana override (compresión natural)
+                    // ============================================
+                    const parentDirectPercent = parseFloat(rc.direct_commission_percent) || 0;
+                    const diffPercent = parentDirectPercent - previousDirectPercent;
 
-                if (levelConfig) {
-                    // Override específico para este nivel
-                    const percentComm = saleAmount * (parseFloat(levelConfig.percent) || 0) / 100;
-                    const fixedComm = parseFloat(levelConfig.fixed) || 0;
-                    overrideCommission = percentComm + fixedComm;
+                    if (diffPercent > 0) {
+                        overrideCommission = saleAmount * diffPercent / 100;
+                        // También sumar fijo si está configurado
+                        overrideCommission += parseFloat(rc.override_commission_fixed) || 0;
+                    }
+                    // Actualizar el % anterior para el siguiente nivel
+                    previousDirectPercent = parentDirectPercent;
+
                 } else {
-                    // Override general del rango
-                    const percentComm = saleAmount * (parseFloat(rc.override_commission_percent) || 0) / 100;
-                    const fixedComm = parseFloat(rc.override_commission_fixed) || 0;
-                    overrideCommission = percentComm + fixedComm;
+                    // ============================================
+                    // MODO FIJO (override independiente por rango)
+                    // ============================================
+                    // Verificar si hay override específico por nivel de profundidad
+                    const byLevel = rc.override_by_level || [];
+                    const levelConfig = byLevel.find(l => l.level === level);
+
+                    if (levelConfig) {
+                        const percentComm = saleAmount * (parseFloat(levelConfig.percent) || 0) / 100;
+                        const fixedComm = parseFloat(levelConfig.fixed) || 0;
+                        overrideCommission = percentComm + fixedComm;
+                    } else {
+                        const percentComm = saleAmount * (parseFloat(rc.override_commission_percent) || 0) / 100;
+                        const fixedComm = parseFloat(rc.override_commission_fixed) || 0;
+                        overrideCommission = percentComm + fixedComm;
+                    }
                 }
             }
 
@@ -289,5 +330,120 @@ async function calculateOverrideCommissions(conversionId, affiliateId, companyId
         console.error('Override commission error:', err);
     }
 }
+
+// ============================================
+// ADMIN ENDPOINTS (requieren auth)
+// ============================================
+
+// Listar conversiones con filtros
+router.get('/list', authMiddleware, async (req, res) => {
+    try {
+        const { status, affiliate_id, campaign_id, start_date, end_date, page = 1, limit = 50 } = req.query;
+        const offset = (page - 1) * limit;
+        let query = `SELECT c.*, a.email as affiliate_email, a.ref_id, a.first_name as affiliate_name,
+                     ca.name as campaign_name
+                     FROM conversions c
+                     LEFT JOIN affiliates a ON c.affiliate_id = a.id
+                     LEFT JOIN campaigns ca ON c.campaign_id = ca.id
+                     WHERE c.company_id = $1`;
+        const params = [req.user.company_id];
+
+        if (status) { params.push(status); query += ` AND c.status = $${params.length}`; }
+        if (affiliate_id) { params.push(affiliate_id); query += ` AND c.affiliate_id = $${params.length}`; }
+        if (campaign_id) { params.push(campaign_id); query += ` AND c.campaign_id = $${params.length}`; }
+        if (start_date) { params.push(start_date); query += ` AND c.created_at >= $${params.length}`; }
+        if (end_date) { params.push(end_date); query += ` AND c.created_at <= $${params.length}`; }
+
+        const countQuery = query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM');
+        const count = await db.query(countQuery, params);
+
+        query += ` ORDER BY c.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limit, offset);
+
+        const result = await db.query(query, params);
+        res.json({
+            conversions: result.rows,
+            total: parseInt(count.rows[0].total),
+            page: parseInt(page)
+        });
+    } catch (err) {
+        console.error('Error listing conversions:', err);
+        res.status(500).json({ error: 'Failed to list conversions' });
+    }
+});
+
+// Aprobar conversión
+router.patch('/:id/approve', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.query(
+            `UPDATE conversions SET status = 'approved', approved_at = NOW()
+             WHERE id = $1 AND company_id = $2 AND status = 'pending' RETURNING id`,
+            [req.params.id, req.user.company_id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Conversion not found or already processed' });
+        res.json({ status: 'approved' });
+    } catch (err) {
+        console.error('Error approving conversion:', err);
+        res.status(500).json({ error: 'Failed to approve conversion' });
+    }
+});
+
+// Rechazar conversión (y revertir comisión)
+router.patch('/:id/reject', authMiddleware, async (req, res) => {
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const conv = await client.query(
+            'SELECT * FROM conversions WHERE id = $1 AND company_id = $2 AND status IN ($3, $4)',
+            [req.params.id, req.user.company_id, 'pending', 'flagged']
+        );
+        if (conv.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Conversion not found or already processed' });
+        }
+
+        const c = conv.rows[0];
+
+        // Revertir comisión del afiliado
+        await client.query(
+            `UPDATE affiliates SET
+             total_conversions = GREATEST(total_conversions - 1, 0),
+             total_revenue = GREATEST(total_revenue - $1, 0),
+             total_commission = GREATEST(total_commission - $2, 0),
+             balance = GREATEST(balance - $2, 0)
+             WHERE id = $3`,
+            [parseFloat(c.amount), parseFloat(c.commission), c.affiliate_id]
+        );
+
+        // Revertir comisiones MLM
+        const mlmComms = await client.query(
+            'SELECT affiliate_id, commission FROM mlm_commissions WHERE conversion_id = $1',
+            [req.params.id]
+        );
+        for (const mlm of mlmComms.rows) {
+            await client.query(
+                'UPDATE affiliates SET balance = GREATEST(balance - $1, 0), total_commission = GREATEST(total_commission - $1, 0) WHERE id = $2',
+                [parseFloat(mlm.commission), mlm.affiliate_id]
+            );
+        }
+        await client.query("UPDATE mlm_commissions SET status = 'rejected' WHERE conversion_id = $1", [req.params.id]);
+
+        // Marcar conversión como rechazada
+        await client.query(
+            "UPDATE conversions SET status = 'rejected' WHERE id = $1",
+            [req.params.id]
+        );
+
+        await client.query('COMMIT');
+        res.json({ status: 'rejected', reverted_commission: parseFloat(c.commission) });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Error rejecting conversion:', err);
+        res.status(500).json({ error: 'Failed to reject conversion' });
+    } finally {
+        client.release();
+    }
+});
 
 module.exports = router;

@@ -2,6 +2,9 @@ require('dotenv').config({ path: './config/.env' });
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
 
 const trackingRoutes = require('./routes/tracking');
 const affiliateRoutes = require('./routes/affiliates');
@@ -18,7 +21,49 @@ const teamRoutes = require('./routes/team');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// ============================================
+// SECURITY & LOGGING MIDDLEWARE
+// ============================================
+app.use(helmet({
+    contentSecurityPolicy: false, // Disable CSP for inline scripts in frontend
+    crossOriginEmbedderPolicy: false
+}));
+
+// Request logging
+if (process.env.NODE_ENV === 'production') {
+    app.use(morgan('combined'));
+} else {
+    app.use(morgan('dev'));
+}
+
+// Rate limiting - general API
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 500,
+    message: { error: 'Too many requests, try again later' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Rate limiting - auth (más estricto)
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // 20 intentos de login por 15 min
+    message: { error: 'Too many login attempts, try again later' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Rate limiting - tracking (más permisivo)
+const trackLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 200, // 200 clicks/postbacks por minuto por IP
+    message: 'Rate limited',
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// CORS
 const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
     : undefined;
@@ -26,28 +71,32 @@ app.use(cors(allowedOrigins ? {
     origin: allowedOrigins,
     credentials: true
 } : undefined));
-app.use(express.json());
+
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
+
+// Trust proxy (for correct IP behind Nginx)
+app.set('trust proxy', 1);
 
 // ============================================
 // TRACKING ROUTES (publicas - no auth)
 // ============================================
-app.use('/track', trackingRoutes);      // Click tracking
-app.use('/postback', conversionRoutes); // Conversion postback
+app.use('/track', trackLimiter, trackingRoutes);
+app.use('/postback', trackLimiter, conversionRoutes);
 
 // ============================================
 // API ROUTES (requieren auth)
 // ============================================
-app.use('/api/auth', authRoutes);
-app.use('/api/affiliates', affiliateRoutes);
-app.use('/api/campaigns', campaignRoutes);
-app.use('/api/conversions', conversionRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/coupons', couponRoutes);
-app.use('/api/payouts', payoutRoutes);
-app.use('/api/fraud', fraudRoutes);
-app.use('/api/ranks', rankRoutes);
-app.use('/api/team', teamRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/affiliates', apiLimiter, affiliateRoutes);
+app.use('/api/campaigns', apiLimiter, campaignRoutes);
+app.use('/api/conversions', apiLimiter, conversionRoutes);
+app.use('/api/reports', apiLimiter, reportRoutes);
+app.use('/api/coupons', apiLimiter, couponRoutes);
+app.use('/api/payouts', apiLimiter, payoutRoutes);
+app.use('/api/fraud', apiLimiter, fraudRoutes);
+app.use('/api/ranks', apiLimiter, rankRoutes);
+app.use('/api/team', apiLimiter, teamRoutes);
 
 // ============================================
 // FRONTEND ROUTES
@@ -59,7 +108,7 @@ app.get('/affiliate', (req, res) => res.sendFile(path.join(__dirname, '../fronte
 
 // Health check
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
 });
 
 // Pixel image (1x1 transparent gif)
@@ -70,6 +119,7 @@ app.get('/pixel.gif', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Affiliate Platform running on port ${PORT}`);
+    console.log(`MagnetRaffic running on port ${PORT}`);
     console.log(`Tracking URL: ${process.env.TRACKING_DOMAIN || 'http://localhost:' + PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

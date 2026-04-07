@@ -48,9 +48,11 @@ CREATE TABLE IF NOT EXISTS rank_commissions (
 -- Agregar campo rank a affiliates
 ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS rank INTEGER DEFAULT 1;
 
--- Configuración de reclutamiento por empresa
+-- Configuración de reclutamiento y override por empresa
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS max_recruitment_depth INTEGER DEFAULT 0;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS recruitment_rules JSONB DEFAULT '{}';
+-- override_mode: 'fixed' = override fijo por rango, 'difference' = override por diferencia de % entre rangos
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS override_mode VARCHAR(20) DEFAULT 'fixed';
 
 -- Historial de cambios de rango
 CREATE TABLE IF NOT EXISTS rank_history (

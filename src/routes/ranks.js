@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
 const { authMiddleware } = require('../middleware/auth');
+const { evaluateAllRanks } = require('../services/rank-evaluator');
 
 // Listar rangos de la empresa
 router.get('/', authMiddleware, async (req, res) => {
@@ -159,6 +160,52 @@ router.get('/history/:affiliateId', authMiddleware, async (req, res) => {
     } catch (err) {
         console.error('Error getting rank history:', err);
         res.status(500).json({ error: 'Failed to get rank history' });
+    }
+});
+
+// Evaluar ascensos automáticos para toda la empresa
+router.post('/evaluate', authMiddleware, async (req, res) => {
+    try {
+        const result = await evaluateAllRanks(req.user.company_id);
+        res.json(result);
+    } catch (err) {
+        console.error('Error evaluating ranks:', err);
+        res.status(500).json({ error: 'Failed to evaluate ranks' });
+    }
+});
+
+// Obtener configuración de override de la empresa
+router.get('/settings', authMiddleware, async (req, res) => {
+    try {
+        const result = await db.query(
+            'SELECT override_mode, max_recruitment_depth FROM companies WHERE id = $1',
+            [req.user.company_id]
+        );
+        res.json(result.rows[0] || { override_mode: 'fixed', max_recruitment_depth: 0 });
+    } catch (err) {
+        console.error('Error getting rank settings:', err);
+        res.status(500).json({ error: 'Failed to get settings' });
+    }
+});
+
+// Actualizar configuración de override
+router.put('/settings', authMiddleware, async (req, res) => {
+    try {
+        const { override_mode, max_recruitment_depth } = req.body;
+        if (override_mode && !['fixed', 'difference'].includes(override_mode)) {
+            return res.status(400).json({ error: 'Override mode must be "fixed" or "difference"' });
+        }
+        const result = await db.query(
+            `UPDATE companies SET
+             override_mode = COALESCE($1, override_mode),
+             max_recruitment_depth = COALESCE($2, max_recruitment_depth)
+             WHERE id = $3 RETURNING override_mode, max_recruitment_depth`,
+            [override_mode, max_recruitment_depth, req.user.company_id]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error updating rank settings:', err);
+        res.status(500).json({ error: 'Failed to update settings' });
     }
 });
 
