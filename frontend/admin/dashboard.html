@@ -71,6 +71,8 @@
         <a onclick="showSection('affiliates')">Affiliates</a>
         <a onclick="showSection('campaigns')">Campaigns</a>
         <a onclick="showSection('conversions')">Conversions</a>
+        <a onclick="showSection('renewals')">Renewals</a>
+        <a onclick="showSection('salesReports')">Sales Reports</a>
         <a onclick="showSection('coupons')">Coupons</a>
         <a onclick="showSection('payouts')">Payouts</a>
         <a onclick="showSection('notifications')">Notifications <span id="notifBadge" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;display:none">0</span></a>
@@ -115,6 +117,33 @@
             <div class="top-bar"><h1>Conversions</h1></div>
             <div style="margin-bottom:15px"><button class="btn btn-gray" onclick="exportCSV('conversions')">Export CSV</button></div>
             <table id="convTable"><thead><tr><th>ID</th><th>Affiliate</th><th>Campaign</th><th>Order</th><th>Amount</th><th>Commission</th><th>Method</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- RENEWALS -->
+        <div class="section" id="sec-renewals">
+            <div class="top-bar"><h1>Renewals</h1><button class="btn btn-blue" onclick="showAddRenewalModal()">+ Add Renewal</button></div>
+            <div class="stats-grid" id="renewalStats"></div>
+            <h2 style="margin:20px 0 10px">Upcoming Renewals <span style="color:#64748b;font-size:14px">(next 30 days)</span></h2>
+            <table id="upcomingTable"><thead><tr><th>Client</th><th>Agent</th><th>Campaign</th><th>Amount</th><th>Original Date</th><th>Renewals</th><th>Actions</th></tr></thead><tbody></tbody></table>
+            <h2 style="margin:20px 0 10px">All Renewals</h2>
+            <table id="renewalTable"><thead><tr><th>ID</th><th>Agent</th><th>Policy</th><th>Amount</th><th>Commission</th><th>#</th><th>Period</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <!-- SALES REPORTS -->
+        <div class="section" id="sec-salesReports">
+            <div class="top-bar"><h1>Sales Reports</h1></div>
+            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+                <input id="sr_start" type="date" style="padding:8px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0">
+                <input id="sr_end" type="date" style="padding:8px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0">
+                <button class="btn btn-blue" onclick="loadSalesReports()">Apply</button>
+            </div>
+            <div class="stats-grid" id="salesSummary"></div>
+            <h2 style="margin:20px 0 10px">By Agent</h2>
+            <table id="srAgentTable"><thead><tr><th>Agent</th><th>Rank</th><th>Sales</th><th>Revenue</th><th>Commission</th><th>Renewals</th><th>Renewal Rev.</th></tr></thead><tbody></tbody></table>
+            <h2 style="margin:20px 0 10px">By Campaign</h2>
+            <table id="srCampTable"><thead><tr><th>Campaign</th><th>Type</th><th>Sales</th><th>Revenue</th><th>Commission</th><th>Agents</th><th>Renewals</th></tr></thead><tbody></tbody></table>
+            <h2 style="margin:20px 0 10px">By Rank</h2>
+            <table id="srRankTable"><thead><tr><th>Rank</th><th>Agents</th><th>Sales</th><th>Revenue</th><th>Commission</th><th>Avg/Agent</th></tr></thead><tbody></tbody></table>
         </div>
 
         <!-- COUPONS -->
@@ -328,7 +357,7 @@ function showSection(name){
     document.getElementById('sec-'+name).classList.add('active');
     document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
     if(event&&event.target)event.target.classList.add('active');
-    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'notifications':loadNotifications();break;case'ranks':loadRanks();break;case'fraud':loadFraud();break}
+    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'campaigns':loadCampaigns();break;case'conversions':loadConversions();break;case'renewals':loadRenewals();break;case'salesReports':loadSalesReports();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'notifications':loadNotifications();break;case'ranks':loadRanks();break;case'fraud':loadFraud();break}
 }
 
 // MODALS
@@ -493,6 +522,112 @@ function showBlockIPModal(){
         <label>IP Address</label><input id="block_ip" placeholder="123.45.67.89">
         <label>Reason</label><input id="block_reason" placeholder="Reason for blocking">
         <div class="modal-actions"><button class="btn btn-red" onclick="blockIP(document.getElementById('block_ip').value,document.getElementById('block_reason').value);closeModal()">Block IP</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+
+// RENEWALS
+async function loadRenewals(){
+    const [stats,renewals,upcoming]=await Promise.all([api('/api/renewals/stats'),api('/api/renewals?limit=50'),api('/api/renewals/upcoming?days=30')]);
+    document.getElementById('renewalStats').innerHTML=`
+        <div class="stat-card"><div class="label">Total Renewals</div><div class="value blue">${stats.total_renewals}</div></div>
+        <div class="stat-card"><div class="label">This Month</div><div class="value green">${stats.this_month_count}</div></div>
+        <div class="stat-card"><div class="label">Renewal Revenue</div><div class="value green">$${N(stats.total_amount)}</div></div>
+        <div class="stat-card"><div class="label">Renewal Commission</div><div class="value purple">$${N(stats.total_commission)}</div></div>
+        <div class="stat-card"><div class="label">Pending</div><div class="value yellow">${stats.pending_count}</div></div>`;
+    const rnws=renewals.renewals||[];
+    document.querySelector('#renewalTable tbody').innerHTML=rnws.map(x=>`<tr>
+        <td>${x.id}</td><td>${E(x.affiliate_name||x.affiliate_email||'-')}</td><td>${E(x.policy_number||x.order_id||'-')}</td>
+        <td>$${N(x.amount)}</td><td>$${N(x.commission)}</td><td>#${x.renewal_number}</td>
+        <td>${x.period_start?new Date(x.period_start).toLocaleDateString():''}${x.period_end?' - '+new Date(x.period_end).toLocaleDateString():''}</td>
+        <td><span class="badge ${x.status==='approved'||x.status==='paid'?'badge-green':x.status==='pending'?'badge-yellow':'badge-red'}">${E(x.status)}</span></td>
+        <td>${x.status==='pending'?`<button class="btn btn-green" style="padding:3px 8px;font-size:11px" onclick="approveRenewal(${x.id})">Approve</button> <button class="btn btn-red" style="padding:3px 8px;font-size:11px" onclick="cancelRenewal(${x.id})">Cancel</button>`:''}</td>
+    </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;color:#64748b">No renewals yet</td></tr>';
+    const up=upcoming||[];
+    document.querySelector('#upcomingTable tbody').innerHTML=up.map(x=>`<tr>
+        <td>${E(x.customer_name||x.customer_email||'-')}</td><td>${E(x.first_name||x.affiliate_email||'-')}</td>
+        <td>${E(x.campaign_name||'-')}</td><td>$${N(x.amount)}</td>
+        <td>${new Date(x.original_date).toLocaleDateString()}</td><td>${x.renewal_count||0}</td>
+        <td><button class="btn btn-blue" style="padding:3px 8px;font-size:11px" onclick="quickRenewal(${x.conversion_id},${x.amount})">Create Renewal</button></td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No upcoming renewals</td></tr>';
+}
+async function approveRenewal(id){await api('/api/renewals/'+id+'/approve',{method:'PATCH'});loadRenewals()}
+async function cancelRenewal(id){if(!confirm('Cancel this renewal? Commission will be reverted.'))return;await api('/api/renewals/'+id+'/cancel',{method:'PATCH'});loadRenewals()}
+function quickRenewal(convId,amount){
+    openModal(`<h2>Create Renewal</h2>
+        <label>Original Conversion ID</label><input id="rn_conv" type="number" value="${convId}" readonly>
+        <label>Amount</label><input id="rn_amount" type="number" value="${amount}" step="0.01">
+        <label>Policy Number</label><input id="rn_policy" placeholder="POL-123">
+        <label>Period Start</label><input id="rn_pstart" type="date">
+        <label>Period End</label><input id="rn_pend" type="date">
+        <label>Notes</label><input id="rn_notes" placeholder="Annual renewal">
+        <div class="modal-actions"><button class="btn btn-blue" onclick="createRenewal()">Create</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+function showAddRenewalModal(){
+    openModal(`<h2>Add Renewal</h2>
+        <label>Affiliate ID or Ref ID</label><input id="rn_aff" placeholder="5 or AFF123">
+        <label>Campaign ID</label><input id="rn_camp" type="number" placeholder="1">
+        <label>Amount</label><input id="rn_amount" type="number" step="0.01" placeholder="150.00">
+        <label>Policy Number</label><input id="rn_policy" placeholder="POL-123">
+        <label>Customer Email</label><input id="rn_email" placeholder="client@email.com">
+        <label>Customer Name</label><input id="rn_cname" placeholder="John Doe">
+        <label>Period Start</label><input id="rn_pstart" type="date">
+        <label>Period End</label><input id="rn_pend" type="date">
+        <label>Notes</label><input id="rn_notes" placeholder="Annual renewal">
+        <div class="modal-actions"><button class="btn btn-blue" onclick="createRenewalManual()">Create</button><button class="btn btn-gray" onclick="closeModal()">Cancel</button></div>`);
+}
+async function createRenewal(){
+    await api('/api/renewals',{method:'POST',body:JSON.stringify({original_conversion_id:parseInt(document.getElementById('rn_conv').value),amount:parseFloat(document.getElementById('rn_amount').value),policy_number:document.getElementById('rn_policy').value,period_start:document.getElementById('rn_pstart').value||null,period_end:document.getElementById('rn_pend').value||null,notes:document.getElementById('rn_notes').value})});
+    closeModal();loadRenewals();
+}
+async function createRenewalManual(){
+    const affVal=document.getElementById('rn_aff').value;
+    const body={amount:parseFloat(document.getElementById('rn_amount').value),campaign_id:parseInt(document.getElementById('rn_camp').value)||null,policy_number:document.getElementById('rn_policy').value,customer_email:document.getElementById('rn_email').value,customer_name:document.getElementById('rn_cname').value,period_start:document.getElementById('rn_pstart').value||null,period_end:document.getElementById('rn_pend').value||null,notes:document.getElementById('rn_notes').value};
+    if(isNaN(parseInt(affVal)))body.ref_id=affVal;else body.affiliate_id=parseInt(affVal);
+    await api('/api/renewals',{method:'POST',body:JSON.stringify(body)});
+    closeModal();loadRenewals();
+}
+
+// SALES REPORTS
+async function loadSalesReports(){
+    const sd=document.getElementById('sr_start').value||new Date(Date.now()-30*86400000).toISOString().split('T')[0];
+    const ed=document.getElementById('sr_end').value||new Date().toISOString().split('T')[0];
+    if(!document.getElementById('sr_start').value)document.getElementById('sr_start').value=sd;
+    if(!document.getElementById('sr_end').value)document.getElementById('sr_end').value=ed;
+
+    const [summary,byAgent,byCamp,byRank]=await Promise.all([
+        api('/api/sales-reports/summary'),
+        api('/api/sales-reports/by-agent?start_date='+sd+'&end_date='+ed),
+        api('/api/sales-reports/by-campaign?start_date='+sd+'&end_date='+ed),
+        api('/api/sales-reports/by-rank?start_date='+sd+'&end_date='+ed),
+    ]);
+    const s=summary;const arrow=(v)=>v>0?'<span style="color:#22c55e">+'+v+'%</span>':v<0?'<span style="color:#ef4444">'+v+'%</span>':'<span style="color:#64748b">0%</span>';
+    document.getElementById('salesSummary').innerHTML=`
+        <div class="stat-card"><div class="label">This Month Sales</div><div class="value blue">${s.this_month.sales}</div><div style="font-size:12px;margin-top:4px">${arrow(s.changes.sales)} vs last month</div></div>
+        <div class="stat-card"><div class="label">This Month Revenue</div><div class="value green">$${N(s.this_month.revenue)}</div><div style="font-size:12px;margin-top:4px">${arrow(s.changes.revenue)} vs last month</div></div>
+        <div class="stat-card"><div class="label">This Month Commission</div><div class="value purple">$${N(s.this_month.commission)}</div><div style="font-size:12px;margin-top:4px">${arrow(s.changes.commission)} vs last month</div></div>
+        <div class="stat-card"><div class="label">Active Agents</div><div class="value blue">${s.this_month.active_agents}</div></div>
+        <div class="stat-card"><div class="label">Renewals This Month</div><div class="value green">${s.this_month.renewals}</div><div style="font-size:12px;margin-top:4px">${arrow(s.changes.renewals)} vs last month</div></div>
+        <div class="stat-card"><div class="label">Renewal Revenue</div><div class="value green">$${N(s.this_month.renewal_revenue)}</div></div>`;
+    const agents=byAgent.agents||[];
+    document.querySelector('#srAgentTable tbody').innerHTML=agents.map(x=>`<tr>
+        <td>${E(x.first_name||'')} ${E(x.last_name||'')} <span style="color:#64748b;font-size:11px">${E(x.email)}</span></td>
+        <td><span style="color:${x.rank_color||'#64748b'};font-weight:600">${E(x.rank_name||'R'+x.rank)}</span></td>
+        <td>${x.sales_count} <span style="color:#64748b;font-size:11px">(${x.approved_sales} approved)</span></td>
+        <td>$${N(x.total_revenue)}</td><td>$${N(x.total_commission)}</td>
+        <td>${x.renewal_count}</td><td>$${N(x.renewal_revenue)}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No data</td></tr>';
+    const camps=byCamp.campaigns||[];
+    document.querySelector('#srCampTable tbody').innerHTML=camps.map(x=>`<tr>
+        <td>${E(x.name)}</td><td>${E(x.commission_type)}</td><td>${x.sales_count}</td>
+        <td>$${N(x.total_revenue)}</td><td>$${N(x.total_commission)}</td>
+        <td>${x.active_agents}</td><td>${x.renewal_count}</td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:#64748b">No data</td></tr>';
+    const ranks=byRank.ranks||[];
+    document.querySelector('#srRankTable tbody').innerHTML=ranks.map(x=>`<tr>
+        <td><span style="color:${E(x.color)};font-weight:700">${E(x.name)}</span></td>
+        <td>${x.agent_count}</td><td>${x.sales_count}</td>
+        <td>$${N(x.total_revenue)}</td><td>$${N(x.total_commission)}</td>
+        <td>$${N(x.avg_revenue_per_agent)}</td>
+    </tr>`).join('');
 }
 
 // GLOBAL SEARCH

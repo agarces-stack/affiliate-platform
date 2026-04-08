@@ -20,6 +20,8 @@ const teamRoutes = require('./routes/team');
 const notificationRoutes = require('./routes/notifications');
 const webhookRoutes = require('./routes/webhooks');
 const incomingHookRoutes = require('./routes/incoming-hooks');
+const renewalRoutes = require('./routes/renewals');
+const salesReportRoutes = require('./routes/sales-reports');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -103,6 +105,8 @@ app.use('/api/ranks', apiLimiter, rankRoutes);
 app.use('/api/team', apiLimiter, teamRoutes);
 app.use('/api/notifications', apiLimiter, notificationRoutes);
 app.use('/api/webhooks', apiLimiter, webhookRoutes);
+app.use('/api/renewals', apiLimiter, renewalRoutes);
+app.use('/api/sales-reports', apiLimiter, salesReportRoutes);
 
 // ============================================
 // FRONTEND ROUTES

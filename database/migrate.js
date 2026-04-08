@@ -40,6 +40,11 @@ async function migrate() {
         await pool.query(apiKeysMigration);
         console.log('API keys table created!');
 
+        // Ejecutar migration de renewals
+        const renewalsMigration = fs.readFileSync(path.join(__dirname, 'migration_renewals.sql'), 'utf8');
+        await pool.query(renewalsMigration);
+        console.log('Renewals tables created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`
