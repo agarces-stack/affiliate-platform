@@ -22,6 +22,7 @@ const webhookRoutes = require('./routes/webhooks');
 const incomingHookRoutes = require('./routes/incoming-hooks');
 const renewalRoutes = require('./routes/renewals');
 const salesReportRoutes = require('./routes/sales-reports');
+const paymentRoutes = require('./routes/payments');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -107,6 +108,7 @@ app.use('/api/notifications', apiLimiter, notificationRoutes);
 app.use('/api/webhooks', apiLimiter, webhookRoutes);
 app.use('/api/renewals', apiLimiter, renewalRoutes);
 app.use('/api/sales-reports', apiLimiter, salesReportRoutes);
+app.use('/api/payments', apiLimiter, paymentRoutes);
 
 // ============================================
 // FRONTEND ROUTES

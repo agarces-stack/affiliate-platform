@@ -45,6 +45,11 @@ async function migrate() {
         await pool.query(renewalsMigration);
         console.log('Renewals tables created!');
 
+        // Ejecutar migration de payments
+        const paymentsMigration = fs.readFileSync(path.join(__dirname, 'migration_payments.sql'), 'utf8');
+        await pool.query(paymentsMigration);
+        console.log('Payment tables created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`
