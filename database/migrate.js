@@ -35,6 +35,11 @@ async function migrate() {
         await pool.query(webhooksMigration);
         console.log('Webhooks table created!');
 
+        // Ejecutar migration de API keys
+        const apiKeysMigration = fs.readFileSync(path.join(__dirname, 'migration_api_keys.sql'), 'utf8');
+        await pool.query(apiKeysMigration);
+        console.log('API keys table created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`

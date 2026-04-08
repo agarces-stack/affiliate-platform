@@ -19,6 +19,7 @@ const rankRoutes = require('./routes/ranks');
 const teamRoutes = require('./routes/team');
 const notificationRoutes = require('./routes/notifications');
 const webhookRoutes = require('./routes/webhooks');
+const incomingHookRoutes = require('./routes/incoming-hooks');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -83,6 +84,7 @@ app.set('trust proxy', 1);
 // ============================================
 // TRACKING ROUTES (publicas - no auth)
 // ============================================
+app.use('/hooks', apiLimiter, incomingHookRoutes); // n8n, Zapier, GHL
 app.use('/track', trackLimiter, trackingRoutes);
 app.use('/postback', trackLimiter, conversionRoutes);
 
