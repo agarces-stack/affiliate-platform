@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "db:migrate": "node database/migrate.js"
+    "db:migrate": "node database/migrate.js",
+    "change-password": "node scripts/change-password.js",
+    "create-admin": "node scripts/create-admin.js",
+    "generate-secret": "node scripts/generate-jwt-secret.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
