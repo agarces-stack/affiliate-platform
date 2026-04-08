@@ -60,6 +60,11 @@ async function migrate() {
         await pool.query(logsMigration);
         console.log('Log tables created!');
 
+        // Ejecutar migration de products y goals
+        const productsGoalsMigration = fs.readFileSync(path.join(__dirname, 'migration_products_goals.sql'), 'utf8');
+        await pool.query(productsGoalsMigration);
+        console.log('Products & Goals tables created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`

@@ -17,7 +17,8 @@ router.get('/', async (req, res) => {
     const startTime = Date.now();
     try {
         const { click_id, ref_id, campaign_id, order_id, amount,
-                email, first_name, customer_id, new_customer, coupon } = req.query;
+                email, first_name, customer_id, new_customer, coupon,
+                product_id, product_sku, goal } = req.query;
 
         let affiliate_id, company_id, camp_id, tracking_method;
 
@@ -72,61 +73,98 @@ router.get('/', async (req, res) => {
             return res.status(400).json({ error: 'click_id, ref_id, or coupon required' });
         }
 
+        // Resolver producto (por ID o SKU)
+        let resolved_product_id = product_id ? parseInt(product_id) : null;
+        if (!resolved_product_id && product_sku) {
+            const prodResult = await db.query(
+                'SELECT id, campaign_id FROM products WHERE sku = $1 AND company_id = $2 AND status = $3',
+                [product_sku, company_id, 'active']
+            );
+            if (prodResult.rows.length > 0) {
+                resolved_product_id = prodResult.rows[0].id;
+                if (!camp_id) camp_id = prodResult.rows[0].campaign_id;
+            }
+        }
+
         // Buscar campaña para calcular comision
         const campResult = await db.query('SELECT * FROM campaigns WHERE id = $1', [camp_id]);
         const campaign = campResult.rows[0];
 
-        // Calcular comisión usando sistema de rangos
+        // Calcular comisión: Producto > Rango > Campaña (orden de prioridad)
         let commission = 0;
         let commission_type = 'rank_based';
 
-        if (campaign) {
-            // Buscar rango del agente y su comisión configurada
+        if (campaign || resolved_product_id) {
+            // Buscar rango del agente
             const affRank = await db.query(
                 'SELECT rank FROM affiliates WHERE id = $1', [affiliate_id]
             );
             const agentRank = affRank.rows[0]?.rank || 1;
 
-            const rankComm = await db.query(
-                `SELECT rc.* FROM rank_commissions rc
-                 JOIN ranks r ON r.id = rc.rank_id
-                 WHERE r.company_id = $1 AND r.rank_number = $2 AND rc.campaign_id = $3`,
-                [company_id, agentRank, camp_id]
-            );
-
-            if (rankComm.rows.length > 0) {
-                // Comisión basada en rango: % del monto + fija
-                const rc = rankComm.rows[0];
-                const percentComm = (parseFloat(amount) || 0) * (parseFloat(rc.direct_commission_percent) || 0) / 100;
-                const fixedComm = parseFloat(rc.direct_commission_fixed) || 0;
-                commission = percentComm + fixedComm;
-            } else {
-                // Fallback: usar comisión de la campaña (retrocompatibilidad)
-                const overrideResult = await db.query(
-                    'SELECT * FROM campaign_affiliates WHERE campaign_id = $1 AND affiliate_id = $2',
-                    [camp_id, affiliate_id]
+            // PRIORIDAD 1: Comisión por producto + rango
+            let productCommFound = false;
+            if (resolved_product_id) {
+                const prodRankComm = await db.query(
+                    `SELECT prc.* FROM product_rank_commissions prc
+                     JOIN ranks r ON r.id = prc.rank_id
+                     WHERE prc.product_id = $1 AND r.rank_number = $2 AND r.company_id = $3`,
+                    [resolved_product_id, agentRank, company_id]
                 );
-                const override = overrideResult.rows[0];
-
-                const commType = override?.custom_commission_type || campaign.commission_type;
-                const commAmount = override?.custom_commission_amount || campaign.commission_amount;
-                const commPercent = override?.custom_commission_percent || campaign.commission_percent;
-                commission_type = commType;
-
-                switch (commType) {
-                    case 'cpa':
-                        commission = commAmount || 0;
-                        break;
-                    case 'revshare':
-                        commission = (parseFloat(amount) || 0) * (commPercent || 0) / 100;
-                        break;
-                    case 'hybrid':
-                        commission = (commAmount || 0) + ((parseFloat(amount) || 0) * (commPercent || 0) / 100);
-                        break;
-                    default:
-                        commission = commAmount || 0;
+                if (prodRankComm.rows.length > 0) {
+                    const prc = prodRankComm.rows[0];
+                    commission = (parseFloat(amount) || 0) * (parseFloat(prc.direct_commission_percent) || 0) / 100
+                               + (parseFloat(prc.direct_commission_fixed) || 0);
+                    commission_type = 'product_rank';
+                    productCommFound = true;
+                }
+                // Fallback: comisión default del producto
+                if (!productCommFound) {
+                    const prodDefault = await db.query('SELECT * FROM products WHERE id = $1', [resolved_product_id]);
+                    if (prodDefault.rows.length > 0) {
+                        const pd = prodDefault.rows[0];
+                        switch (pd.commission_type) {
+                            case 'cpa': commission = parseFloat(pd.commission_amount) || 0; break;
+                            case 'revshare': commission = (parseFloat(amount) || 0) * (parseFloat(pd.commission_percent) || 0) / 100; break;
+                            default: commission = (parseFloat(pd.commission_amount) || 0) + (parseFloat(amount) || 0) * (parseFloat(pd.commission_percent) || 0) / 100;
+                        }
+                        commission_type = 'product_default';
+                        productCommFound = true;
+                    }
                 }
             }
+
+            // PRIORIDAD 2: Comisión por rango + campaña
+            if (!productCommFound) {
+                const rankComm = await db.query(
+                    `SELECT rc.* FROM rank_commissions rc
+                     JOIN ranks r ON r.id = rc.rank_id
+                     WHERE r.company_id = $1 AND r.rank_number = $2 AND rc.campaign_id = $3`,
+                    [company_id, agentRank, camp_id]
+                );
+
+                if (rankComm.rows.length > 0) {
+                    const rc = rankComm.rows[0];
+                    commission = (parseFloat(amount) || 0) * (parseFloat(rc.direct_commission_percent) || 0) / 100
+                               + (parseFloat(rc.direct_commission_fixed) || 0);
+                } else if (campaign) {
+                    // PRIORIDAD 3: Comisión de la campaña (retrocompatibilidad)
+                    const overrideResult = await db.query(
+                        'SELECT * FROM campaign_affiliates WHERE campaign_id = $1 AND affiliate_id = $2',
+                        [camp_id, affiliate_id]
+                    );
+                    const override = overrideResult.rows[0];
+                    const commType = override?.custom_commission_type || campaign.commission_type;
+                    const commAmount = override?.custom_commission_amount || campaign.commission_amount;
+                    const commPercent = override?.custom_commission_percent || campaign.commission_percent;
+                    commission_type = commType;
+                    switch (commType) {
+                        case 'cpa': commission = commAmount || 0; break;
+                        case 'revshare': commission = (parseFloat(amount) || 0) * (commPercent || 0) / 100; break;
+                        case 'hybrid': commission = (commAmount || 0) + ((parseFloat(amount) || 0) * (commPercent || 0) / 100); break;
+                        default: commission = commAmount || 0;
+                    }
+                }
+            } // end !productCommFound
         }
 
         const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
@@ -165,14 +203,16 @@ router.get('/', async (req, res) => {
             convResult = await client.query(
                 `INSERT INTO conversions (company_id, campaign_id, affiliate_id, click_id,
                  order_id, amount, commission, commission_type, customer_email, customer_name,
-                 customer_id, is_new_customer, ip_address, tracking_method, status)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+                 customer_id, is_new_customer, ip_address, tracking_method, status,
+                 product_id, goal_slug)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
                  RETURNING id`,
                 [company_id, camp_id, affiliate_id, click_id || null,
                  order_id || null, parseFloat(amount) || 0, commission, commission_type,
                  email || null, first_name || null, customer_id || null,
                  new_customer === '1' || new_customer === 'true',
-                 ip, tracking_method, fraudCheck.shouldFlag ? 'flagged' : 'pending']
+                 ip, tracking_method, fraudCheck.shouldFlag ? 'flagged' : 'pending',
+                 resolved_product_id || null, goal || null]
             );
 
             // Actualizar totales del afiliado
