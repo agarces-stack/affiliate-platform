@@ -50,6 +50,11 @@ async function migrate() {
         await pool.query(paymentsMigration);
         console.log('Payment tables created!');
 
+        // Ejecutar migration de payout schedule
+        const payoutScheduleMigration = fs.readFileSync(path.join(__dirname, 'migration_payout_schedule.sql'), 'utf8');
+        await pool.query(payoutScheduleMigration);
+        console.log('Payout schedule tables created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`

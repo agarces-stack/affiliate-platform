@@ -88,13 +88,43 @@
     <h1 id="welcomeName">Welcome</h1>
     <p class="subtitle">Affiliate ID: <code id="refIdDisplay" style="color:#8b5cf6;font-size:1.1em"></code></p>
 
+    <!-- WALLET / ACCOUNT -->
+    <div class="link-box" id="walletSection" style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border:1px solid #334155">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+            <h3 style="color:#e2e8f0;margin:0">My Account</h3>
+            <span id="walletSchedule" style="color:#64748b;font-size:12px"></span>
+        </div>
+        <div style="text-align:center;padding:15px 0">
+            <div style="color:#64748b;font-size:13px">Available Balance</div>
+            <div id="walletAvailable" style="font-size:2.5em;font-weight:800;color:#22c55e;margin:5px 0">$0.00</div>
+            <div style="display:flex;justify-content:center;gap:20px;margin-top:5px">
+                <span style="color:#64748b;font-size:12px">Pending: <span id="walletPending" style="color:#eab308">$0.00</span></span>
+                <span style="color:#64748b;font-size:12px">Total Earned: <span id="walletEarned" style="color:#8b5cf6">$0.00</span></span>
+                <span style="color:#64748b;font-size:12px">Withdrawn: <span id="walletWithdrawn" style="color:#3b82f6">$0.00</span></span>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:15px">
+            <button id="withdrawBtn" onclick="showWithdrawModal()" style="flex:1;padding:12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">Request Withdrawal</button>
+            <button onclick="showMovements()" style="flex:1;padding:12px;background:#334155;color:#94a3b8;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">View Transactions</button>
+        </div>
+    </div>
+
     <div class="stats-grid" id="affStats">
-        <div class="stat-card"><div class="label">Balance</div><div class="value green" id="st_balance">$0.00</div></div>
         <div class="stat-card"><div class="label">Total Clicks</div><div class="value blue" id="st_clicks">0</div></div>
         <div class="stat-card"><div class="label">Conversions</div><div class="value purple" id="st_conv">0</div></div>
-        <div class="stat-card"><div class="label">Total Commission</div><div class="value green" id="st_comm">$0.00</div></div>
-        <div class="stat-card"><div class="label">Conversion Rate</div><div class="value yellow" id="st_rate">0%</div></div>
-        <div class="stat-card"><div class="label">Total Revenue</div><div class="value blue" id="st_rev">$0.00</div></div>
+        <div class="stat-card"><div class="label">Commission</div><div class="value green" id="st_comm">$0.00</div></div>
+        <div class="stat-card"><div class="label">Conv. Rate</div><div class="value" style="color:#eab308" id="st_rate">0%</div></div>
+    </div>
+
+    <!-- TRANSACTIONS MODAL -->
+    <div id="txnModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:100;overflow-y:auto;padding:20px">
+        <div style="max-width:600px;margin:40px auto;background:#1e293b;border-radius:16px;padding:25px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+                <h2 style="color:#e2e8f0;margin:0">Transactions</h2>
+                <button onclick="document.getElementById('txnModal').style.display='none'" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer">X</button>
+            </div>
+            <div id="txnList"></div>
+        </div>
     </div>
 
     <div class="link-box">
@@ -207,13 +237,13 @@ async function showPortal(){
     try{
         const res=await fetch(API+'/api/affiliates/'+decoded.id+'/stats',{headers:{'Authorization':'Bearer '+affToken}});
         const s=await res.json();
-        document.getElementById('st_balance').textContent='$'+Number(s.balance||0).toFixed(2);
         document.getElementById('st_clicks').textContent=s.clicks?.total||0;
         document.getElementById('st_conv').textContent=s.conversions?.total||0;
         document.getElementById('st_rev').textContent='$'+Number(s.conversions?.revenue||0).toFixed(2);
         document.getElementById('st_comm').textContent='$'+Number(s.conversions?.commission||0).toFixed(2);
         document.getElementById('st_rate').textContent=s.conversion_rate||'0%';
     }catch(e){}
+    loadWallet();
     loadTeam();
     loadAffNotifs();
 }
@@ -259,6 +289,73 @@ async function loadTeam(){
     }catch(e){console.error('Team load error:',e)}
 }
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
+
+async function loadWallet(){
+    try{
+        const w=await fetch(API+'/api/wallet/balance',{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
+        document.getElementById('walletAvailable').textContent='$'+Number(w.available_balance||0).toFixed(2);
+        document.getElementById('walletPending').textContent='$'+Number(w.pending_balance||0).toFixed(2);
+        document.getElementById('walletEarned').textContent='$'+Number(w.total_earned||0).toFixed(2);
+        document.getElementById('walletWithdrawn').textContent='$'+Number(w.total_withdrawn||0).toFixed(2);
+        const scheduleMap={on_request:'Withdraw anytime',weekly:'Paid weekly',biweekly:'Paid biweekly',monthly:'Paid monthly'};
+        document.getElementById('walletSchedule').textContent=scheduleMap[w.payout_schedule]||'';
+        const btn=document.getElementById('withdrawBtn');
+        if(!w.can_withdraw){btn.disabled=true;btn.style.opacity='0.5';btn.textContent='Min $'+Number(w.min_withdrawal).toFixed(0)+' to withdraw'}
+        window._walletData=w;
+    }catch(e){console.error('Wallet error:',e)}
+}
+
+function showWithdrawModal(){
+    const w=window._walletData||{};
+    document.getElementById('txnModal').style.display='block';
+    document.getElementById('txnModal').querySelector('h2').textContent='Request Withdrawal';
+    document.getElementById('txnList').innerHTML=`
+        <p style="color:#94a3b8;margin-bottom:15px">Available: <strong style="color:#22c55e">$${Number(w.available_balance||0).toFixed(2)}</strong></p>
+        <label style="color:#94a3b8;font-size:13px;display:block;margin-bottom:4px">Amount</label>
+        <input id="wd_amount" type="number" step="0.01" min="${w.min_withdrawal||50}" max="${w.available_balance||0}" value="${w.available_balance||0}" style="width:100%;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:16px;margin-bottom:10px">
+        <label style="color:#94a3b8;font-size:13px;display:block;margin-bottom:4px">Payment Method</label>
+        <select id="wd_method" style="width:100%;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:16px;margin-bottom:10px">
+            <option value="paypal">PayPal</option>
+            <option value="wire">Wire Transfer / ACH</option>
+            <option value="zelle">Zelle</option>
+        </select>
+        <label style="color:#94a3b8;font-size:13px;display:block;margin-bottom:4px">PayPal Email / Account Details</label>
+        <input id="wd_details" placeholder="your@paypal.com" style="width:100%;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:16px;margin-bottom:15px">
+        <button onclick="submitWithdrawal()" style="width:100%;padding:14px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer">Submit Request</button>
+    `;
+}
+
+async function submitWithdrawal(){
+    try{
+        const r=await fetch(API+'/api/wallet/withdraw',{method:'POST',headers:{'Authorization':'Bearer '+affToken,'Content-Type':'application/json'},body:JSON.stringify({amount:parseFloat(document.getElementById('wd_amount').value),payment_method:document.getElementById('wd_method').value,payment_details:{email:document.getElementById('wd_details').value}})}).then(r=>r.json());
+        if(r.error){alert(r.error);return}
+        document.getElementById('txnModal').style.display='none';
+        alert('Withdrawal request submitted! Status: '+r.status);
+        loadWallet();
+    }catch(e){alert('Error: '+e.message)}
+}
+
+async function showMovements(){
+    document.getElementById('txnModal').style.display='block';
+    document.getElementById('txnModal').querySelector('h2').textContent='Transactions';
+    document.getElementById('txnList').innerHTML='<p style="color:#64748b">Loading...</p>';
+    try{
+        const d=await fetch(API+'/api/wallet/movements?limit=30',{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
+        const movs=d.movements||[];
+        document.getElementById('txnList').innerHTML=movs.map(m=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #0f172a">
+                <div>
+                    <div style="color:#e2e8f0;font-size:13px;font-weight:500">${esc(m.description||m.type.replace(/_/g,' '))}</div>
+                    <div style="color:#64748b;font-size:11px">${new Date(m.created_at).toLocaleString()}${!m.is_available?' · <span style="color:#eab308">pending</span>':''}</div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-weight:700;font-size:14px;color:${m.direction==='credit'?'#22c55e':'#ef4444'}">${m.direction==='credit'?'+':'-'}$${Number(m.amount).toFixed(2)}</div>
+                    <div style="color:#64748b;font-size:11px">Bal: $${Number(m.balance_after).toFixed(2)}</div>
+                </div>
+            </div>
+        `).join('')||'<p style="color:#64748b;text-align:center;padding:20px">No transactions yet</p>';
+    }catch(e){document.getElementById('txnList').innerHTML='<p style="color:#ef4444">Error loading transactions</p>'}
+}
 
 function renderTree(nodes){
     if(!nodes||nodes.length===0)return'<p style="color:#64748b">No team members yet</p>';
