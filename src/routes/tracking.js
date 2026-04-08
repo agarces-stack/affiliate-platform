@@ -4,16 +4,21 @@ const { v4: uuidv4 } = require('uuid');
 const UAParser = require('ua-parser-js');
 const db = require('../models/db');
 const { checkClickFraud } = require('../services/fraud');
+const { logPostback } = require('../services/audit-log');
 
 // ============================================
 // CLICK TRACKING
 // GET /track?ref_id=ABC123&campaign_id=1
 // ============================================
 router.get('/', async (req, res) => {
+    const startTime = Date.now();
     try {
         const { ref_id, campaign_id, sub_id1, sub_id2, sub_id3 } = req.query;
 
-        if (!ref_id) return res.status(400).send('Missing ref_id');
+        if (!ref_id) {
+            logPostback({ endpoint: 'track', queryParams: req.query, headers: req.headers, ip: req.ip, status: 'error', statusCode: 400, errorMessage: 'Missing ref_id', processingTimeMs: Date.now() - startTime });
+            return res.status(400).send('Missing ref_id');
+        }
 
         // Buscar afiliado
         const affResult = await db.query(
@@ -108,10 +113,14 @@ router.get('/', async (req, res) => {
         redirectUrl.searchParams.set('click_id', click_id);
         redirectUrl.searchParams.set('ref_id', ref_id);
 
+        // Log exitoso
+        logPostback({ companyId: affiliate.company_id, endpoint: 'track', queryParams: req.query, headers: req.headers, ip, status: 'success', statusCode: 302, response: { click_id, redirect: redirectUrl.toString() }, clickId: click_id, affiliateId: affiliate.id, campaignId: campaign.id, processingTimeMs: Date.now() - startTime });
+
         res.redirect(302, redirectUrl.toString());
 
     } catch (err) {
         console.error('Click tracking error:', err);
+        logPostback({ endpoint: 'track', queryParams: req.query, headers: req.headers, ip: req.ip, status: 'error', statusCode: 500, errorMessage: err.message, processingTimeMs: Date.now() - startTime });
         res.status(500).send('Tracking error');
     }
 });

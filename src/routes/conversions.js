@@ -6,6 +6,7 @@ const { checkConversionFraud } = require('../services/fraud');
 const { evaluateRankUp } = require('../services/rank-evaluator');
 const { Notify } = require('../services/notifications');
 const { triggerWebhooks } = require('../services/webhooks');
+const { logPostback, logActivity } = require('../services/audit-log');
 
 // ============================================
 // POSTBACK - Registrar conversion
@@ -13,6 +14,7 @@ const { triggerWebhooks } = require('../services/webhooks');
 // (publico - llamado desde el servidor del cliente)
 // ============================================
 router.get('/', async (req, res) => {
+    const startTime = Date.now();
     try {
         const { click_id, ref_id, campaign_id, order_id, amount,
                 email, first_name, customer_id, new_customer, coupon } = req.query;
@@ -207,15 +209,13 @@ router.get('/', async (req, res) => {
         // Evaluar ascenso de rango automático (no bloquea la respuesta)
         evaluateRankUp(affiliate_id, company_id).catch(err => console.error('Rank eval error:', err));
 
-        res.json({
-            status: 'ok',
-            conversion_id: convResult.rows[0].id,
-            commission: commission,
-            tracking_method
-        });
+        const responseData = { status: 'ok', conversion_id: convResult.rows[0].id, commission, tracking_method };
+        logPostback({ companyId: company_id, endpoint: 'postback', queryParams: req.query, headers: req.headers, ip, status: 'success', statusCode: 200, response: responseData, conversionId: convResult.rows[0].id, affiliateId: affiliate_id, campaignId: camp_id, processingTimeMs: Date.now() - startTime });
+        res.json(responseData);
 
     } catch (err) {
         console.error('Conversion error:', err);
+        logPostback({ endpoint: 'postback', queryParams: req.query, headers: req.headers, ip: req.ip, status: 'error', statusCode: 500, errorMessage: err.message, processingTimeMs: Date.now() - startTime });
         res.status(500).json({ error: 'Conversion tracking error' });
     }
 });
