@@ -128,7 +128,13 @@ app.use('/api/tiers', apiLimiter, tierRoutes);
 // FRONTEND ROUTES
 // ============================================
 const path = require('path');
+// Static assets (CSS, JS modules, icons, i18n)
 app.use('/i18n', express.static(path.join(__dirname, '../frontend/i18n')));
+app.use('/admin/css', express.static(path.join(__dirname, '../frontend/admin/css')));
+app.use('/admin/js', express.static(path.join(__dirname, '../frontend/admin/js')));
+app.use('/affiliate/css', express.static(path.join(__dirname, '../frontend/affiliate/css')));
+app.use('/affiliate/js', express.static(path.join(__dirname, '../frontend/affiliate/js')));
+// Pages
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../frontend/index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../frontend/admin/dashboard.html')));
 app.get('/affiliate', (req, res) => res.sendFile(path.join(__dirname, '../frontend/affiliate/portal.html')));
