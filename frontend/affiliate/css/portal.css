@@ -1,0 +1,47 @@
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0}
+        .login-page{min-height:100vh;display:flex;align-items:center;justify-content:center}
+        .login-box{background:#1e293b;padding:40px;border-radius:16px;width:420px;max-width:90vw}
+        .login-box h2{margin-bottom:25px;text-align:center;color:#8b5cf6}
+        .login-box input{width:100%;padding:12px;margin-bottom:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:14px}
+        .login-box button{width:100%;padding:14px;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer}
+        .login-box button:hover{background:#7c3aed}
+        .tabs{display:flex;margin-bottom:20px}.tabs button{flex:1;padding:10px;background:#334155;border:none;color:#94a3b8;cursor:pointer;font-size:14px}
+        .tabs button.active{background:#8b5cf6;color:#fff}.tabs button:first-child{border-radius:8px 0 0 8px}.tabs button:last-child{border-radius:0 8px 8px 0}
+        .error{color:#ef4444;text-align:center;margin-bottom:10px;font-size:14px}
+        .success{color:#22c55e;text-align:center;margin-bottom:10px;font-size:14px}
+        .portal{display:none;max-width:1000px;margin:0 auto;padding:20px;padding-bottom:80px}
+        .portal h1{margin-bottom:5px;font-size:1.4em}
+        .subtitle{color:#64748b;margin-bottom:20px;font-size:14px}
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px}
+        .stat-card{background:#1e293b;padding:16px;border-radius:12px;text-align:center}
+        .stat-card .label{color:#64748b;font-size:11px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px}
+        .stat-card .value{font-size:1.5em;font-weight:700}
+        .stat-card .value.blue{color:#3b82f6}.stat-card .value.green{color:#22c55e}.stat-card .value.purple{color:#8b5cf6}
+        .link-box{background:#1e293b;padding:16px;border-radius:12px;margin-bottom:16px}
+        .link-box h3{margin-bottom:10px;color:#8b5cf6;font-size:15px}
+        .link-box .link{background:#0f172a;padding:10px;border-radius:8px;font-family:monospace;font-size:12px;word-break:break-all;display:flex;justify-content:space-between;align-items:center;gap:8px}
+        .link-box .link button{background:#8b5cf6;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;white-space:nowrap;min-height:36px}
+        .link-box .link button:hover{background:#7c3aed}
+        .link-box .link button:active{transform:scale(0.95)}
+        .link-box select{width:100%;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;margin-bottom:10px;font-size:16px}
+        .link-box input{width:100%;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;margin-bottom:10px;font-size:16px}
+        .logout-btn{position:fixed;top:12px;right:12px;background:#334155;color:#94a3b8;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;z-index:10}
+        /* Bottom nav for mobile */
+        .bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#1e293b;border-top:1px solid #334155;padding:8px 0;z-index:20}
+        .bottom-nav .nav-items{display:flex;justify-content:space-around;align-items:center}
+        .bottom-nav .nav-item{display:flex;flex-direction:column;align-items:center;color:#64748b;font-size:10px;cursor:pointer;padding:4px 8px;border-radius:8px;text-decoration:none}
+        .bottom-nav .nav-item.active{color:#8b5cf6}
+        .bottom-nav .nav-item span{font-size:18px;margin-bottom:2px}
+        /* Portal sections for tab navigation */
+        .portal-section{display:block}
+        @media(max-width:600px){
+            .stats-grid{grid-template-columns:1fr 1fr;gap:8px}
+            .stat-card{padding:12px}
+            .stat-card .value{font-size:1.3em}
+            .link-box .link{flex-direction:column}
+            .portal{padding:15px;padding-bottom:90px}
+            .portal h1{font-size:1.2em}
+            .bottom-nav{display:block}
+            .logout-btn{top:8px;right:8px;padding:6px 12px;font-size:12px}
+        }
