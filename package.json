@@ -12,7 +12,9 @@
     "generate-secret": "node scripts/generate-jwt-secret.js",
     "generate-api-key": "node scripts/generate-api-key.js",
     "test": "node --test tests/unit/*.test.js",
-    "test:watch": "node --test --watch tests/unit/*.test.js"
+    "test:watch": "node --test --watch tests/unit/*.test.js",
+    "simulate": "node tests/simulator/run.js",
+    "simulate:verbose": "VERBOSE=1 node tests/simulator/run.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
