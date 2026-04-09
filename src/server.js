@@ -27,6 +27,7 @@ const walletRoutes = require('./routes/wallet');
 const logRoutes = require('./routes/logs');
 const productRoutes = require('./routes/products');
 const groupRoutes = require('./routes/groups');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -117,6 +118,7 @@ app.use('/api/wallet', apiLimiter, walletRoutes);
 app.use('/api/logs', apiLimiter, logRoutes);
 app.use('/api/products', apiLimiter, productRoutes);
 app.use('/api/groups', apiLimiter, groupRoutes);
+app.use('/api/ai', apiLimiter, aiRoutes);
 
 // ============================================
 // FRONTEND ROUTES
