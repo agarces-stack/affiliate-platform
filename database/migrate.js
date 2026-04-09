@@ -70,6 +70,15 @@ async function migrate() {
         await pool.query(commGroupsMigration);
         console.log('Commission groups tables created!');
 
+        // Ejecutar migration de RAG (knowledge base)
+        try {
+            const ragMigration = fs.readFileSync(path.join(__dirname, 'migration_rag.sql'), 'utf8');
+            await pool.query(ragMigration);
+            console.log('RAG/Knowledge base tables created!');
+        } catch (ragErr) {
+            console.log('RAG migration skipped (pgvector may not be installed):', ragErr.message);
+        }
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`

@@ -157,6 +157,17 @@
         <p style="color:#94a3b8;font-size:13px" id="couponList">No coupons assigned yet.</p>
     </div>
 
+    <!-- AI CHAT -->
+    <div class="link-box" id="aiChatSection">
+        <h3 style="margin-bottom:10px">AI Assistant</h3>
+        <p style="color:#94a3b8;font-size:12px;margin-bottom:10px">Ask anything about products, commissions, policies, or how to sell.</p>
+        <div id="chatMessages" style="max-height:300px;overflow-y:auto;margin-bottom:10px"></div>
+        <div style="display:flex;gap:8px">
+            <input id="chatInput" type="text" placeholder="Ask a question..." style="flex:1;padding:12px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:14px" onkeydown="if(event.key==='Enter')sendChat()">
+            <button onclick="sendChat()" style="padding:12px 20px;background:#8b5cf6;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Send</button>
+        </div>
+    </div>
+
     <!-- NOTIFICATIONS -->
     <div class="link-box" id="notifSection">
         <h3 style="margin-bottom:15px">Notifications <span id="affNotifBadge" style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;display:none">0</span></h3>
@@ -391,6 +402,25 @@ async function loadAffNotifs(){
             </div>
         `).join('')||'<p style="color:#64748b;font-size:13px">No notifications yet</p>';
     }catch(e){}
+}
+
+async function sendChat(){
+    const input=document.getElementById('chatInput');
+    const q=input.value.trim();if(!q)return;
+    const msgs=document.getElementById('chatMessages');
+    msgs.innerHTML+=`<div style="margin-bottom:8px;text-align:right"><span style="background:#8b5cf6;color:#fff;padding:8px 12px;border-radius:12px 12px 0 12px;font-size:13px;display:inline-block;max-width:80%">${esc(q)}</span></div>`;
+    input.value='';
+    msgs.innerHTML+=`<div id="chatLoading" style="margin-bottom:8px"><span style="background:#334155;color:#94a3b8;padding:8px 12px;border-radius:12px 12px 12px 0;font-size:13px;display:inline-block">Thinking...</span></div>`;
+    msgs.scrollTop=msgs.scrollHeight;
+    try{
+        const r=await fetch(API+'/api/knowledge/chat',{method:'POST',headers:{'Authorization':'Bearer '+affToken,'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(r=>r.json());
+        document.getElementById('chatLoading')?.remove();
+        if(r.error){msgs.innerHTML+=`<div style="margin-bottom:8px"><span style="background:#1e293b;color:#ef4444;padding:8px 12px;border-radius:12px 12px 12px 0;font-size:13px;display:inline-block">${esc(r.error)}</span></div>`;return}
+        let srcHtml='';
+        if(r.sources?.length)srcHtml=`<div style="margin-top:6px;font-size:10px;color:#64748b">${r.sources.map(s=>`[${esc(s.title)}]`).join(' ')}</div>`;
+        msgs.innerHTML+=`<div style="margin-bottom:8px"><span style="background:#1e293b;color:#e2e8f0;padding:10px 14px;border-radius:12px 12px 12px 0;font-size:13px;display:inline-block;max-width:85%;line-height:1.5">${esc(r.answer).replace(/\n/g,'<br>')}${srcHtml}</span></div>`;
+    }catch(e){document.getElementById('chatLoading')?.remove();msgs.innerHTML+=`<div style="margin-bottom:8px"><span style="background:#1e293b;color:#ef4444;padding:8px 12px;border-radius:12px;font-size:13px">Error connecting to AI</span></div>`}
+    msgs.scrollTop=msgs.scrollHeight;
 }
 
 function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent);alert('Copied!')}
