@@ -18,5 +18,8 @@
 ## Comparativa
 - [TrackNow vs MagnetRaffic](TRACKNOW-COMPARISON.md) - Comparación feature por feature (Score: MR 30, Igual 43, TN 1)
 
+## Proyecto Completo
+- [PROJECT-COMPLETE.md](PROJECT-COMPLETE.md) - Documentación completa: todo lo construido, arquitectura, features, comparación, deploy
+
 ## Historial
 - [Changelog](CHANGELOG.md) - Historial completo de versiones y cambios
