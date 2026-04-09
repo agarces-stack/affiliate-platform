@@ -46,6 +46,7 @@
 
         <div class="nav-group-title">System</div>
         <a onclick="showSection('notifications')"><i class="ti ti-bell"></i> <span>Notifications</span> <span id="notifBadge" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;display:none;margin-left:4px">0</span></a>
+        <a onclick="showSection('webhooks')"><i class="ti ti-webhook"></i> <span>Webhooks</span></a>
         <a onclick="showSection('fraud')"><i class="ti ti-shield-check"></i> <span>Fraud</span></a>
         <a onclick="showSection('logs')"><i class="ti ti-file-text"></i> <span>Logs</span></a>
         <a onclick="showSection('knowledge')"><i class="ti ti-brain"></i> <span>Knowledge Base</span></a>
@@ -157,6 +158,30 @@
         <div class="section" id="sec-notifications">
             <div class="top-bar"><h1>Notifications</h1><button class="btn btn-gray" onclick="markAllRead()">Mark All Read</button></div>
             <div id="notifList"></div>
+        </div>
+
+        <!-- WEBHOOKS -->
+        <div class="section" id="sec-webhooks">
+            <div class="top-bar"><h1>Webhooks</h1><button class="btn btn-primary" onclick="showWebhookForm()">+ New Webhook</button></div>
+            <p style="color:#64748b;margin-bottom:20px;font-size:13px">Send real-time events to external URLs. Each request is POST with JSON body. If a secret is set, the request is signed with HMAC-SHA256 in header <code>X-Webhook-Signature</code>.</p>
+            <div id="webhookForm" style="display:none;background:#1e293b;padding:20px;border-radius:12px;margin-bottom:20px">
+                <h3 style="margin-bottom:15px">New Webhook</h3>
+                <input id="whName" placeholder="Name (e.g. Zapier - New Sales)" style="width:100%;padding:10px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;margin-bottom:10px">
+                <input id="whUrl" placeholder="https://hooks.zapier.com/..." style="width:100%;padding:10px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;margin-bottom:10px">
+                <input id="whSecret" placeholder="Secret (optional - for HMAC signing)" style="width:100%;padding:10px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;margin-bottom:10px">
+                <label style="color:#94a3b8;font-size:13px;display:block;margin-bottom:8px">Events to subscribe:</label>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:15px">
+                    <label><input type="checkbox" value="new_conversion" class="whEvent"> New Conversion</label>
+                    <label><input type="checkbox" value="new_affiliate" class="whEvent"> New Affiliate</label>
+                    <label><input type="checkbox" value="affiliate_approved" class="whEvent"> Affiliate Approved</label>
+                    <label><input type="checkbox" value="payout_completed" class="whEvent"> Payout Completed</label>
+                    <label><input type="checkbox" value="rank_promotion" class="whEvent"> Rank Promotion</label>
+                    <label><input type="checkbox" value="fraud_alert" class="whEvent"> Fraud Alert</label>
+                </div>
+                <button class="btn btn-primary" onclick="createWebhook()">Create</button>
+                <button class="btn btn-gray" onclick="document.getElementById('webhookForm').style.display='none'">Cancel</button>
+            </div>
+            <div id="webhookList"></div>
         </div>
 
         <!-- RANKS -->
@@ -311,6 +336,7 @@
 <script src="js/coupons.js"></script>
 <script src="js/payouts.js"></script>
 <script src="js/notifications.js"></script>
+<script src="js/webhooks.js"></script>
 <script src="js/ranks.js"></script>
 <script src="js/groups.js"></script>
 <script src="js/fraud.js"></script>

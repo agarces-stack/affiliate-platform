@@ -44,6 +44,17 @@ router.patch('/:id/status', adminAuth, async (req, res) => {
         const { status } = req.body;
         if (!status) return res.status(400).json({ error: 'Status is required' });
         await db.query('UPDATE affiliates SET status = $1, updated_at = NOW() WHERE id = $2 AND company_id = $3', [status, req.params.id, req.user.company_id]);
+
+        if (status === 'approved') {
+            const { Notify } = require('../services/notifications');
+            const { triggerWebhooks } = require('../services/webhooks');
+            const aff = await db.query('SELECT first_name, email FROM affiliates WHERE id = $1', [req.params.id]);
+            if (aff.rows.length) {
+                Notify.affiliateApproved(req.user.company_id, req.params.id, aff.rows[0].first_name || aff.rows[0].email);
+                triggerWebhooks(req.user.company_id, 'affiliate_approved', { affiliate_id: req.params.id, email: aff.rows[0].email, name: aff.rows[0].first_name });
+            }
+        }
+
         res.json({ status: 'updated' });
     } catch (err) {
         console.error('Error updating affiliate status:', err);

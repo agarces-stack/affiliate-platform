@@ -35,7 +35,7 @@ function showSection(name){
     document.getElementById('sec-'+name).classList.add('active');
     document.querySelectorAll('.sidebar a').forEach(a=>a.classList.remove('active'));
     if(event&&event.target)event.target.classList.add('active');
-    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'groups':loadGroups();break;case'campaigns':loadCampaigns();break;case'products':loadProducts();break;case'conversions':loadConversions();break;case'renewals':loadRenewals();break;case'salesReports':loadSalesReports();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'notifications':loadNotifications();break;case'ranks':loadRanks();break;case'logs':loadLogs();break;case'knowledge':loadKnowledge();break;case'settings':loadSettings();break;case'fraud':loadFraud();break}
+    switch(name){case'overview':loadOverview();break;case'affiliates':loadAffiliates();break;case'groups':loadGroups();break;case'campaigns':loadCampaigns();break;case'products':loadProducts();break;case'conversions':loadConversions();break;case'renewals':loadRenewals();break;case'salesReports':loadSalesReports();break;case'coupons':loadCoupons();break;case'payouts':loadPayouts();break;case'notifications':loadNotifications();break;case'webhooks':loadWebhooks();break;case'ranks':loadRanks();break;case'logs':loadLogs();break;case'knowledge':loadKnowledge();break;case'settings':loadSettings();break;case'fraud':loadFraud();break}
 }
 
 // MODALS

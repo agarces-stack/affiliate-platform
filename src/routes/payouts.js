@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../models/db');
 const { adminAuth } = require('../middleware/auth');
 const { Notify } = require('../services/notifications');
+const { triggerWebhooks } = require('../services/webhooks');
 
 // Listar payouts
 router.get('/', adminAuth, async (req, res) => {
@@ -72,6 +73,11 @@ router.patch('/:id/complete', adminAuth, async (req, res) => {
              WHERE id = $2 AND company_id = $3`,
             [transaction_id, req.params.id, req.user.company_id]
         );
+        const p = await db.query('SELECT affiliate_id, amount, payment_method FROM payouts WHERE id = $1', [req.params.id]);
+        if (p.rows.length) {
+            Notify.payoutCompleted(req.user.company_id, p.rows[0].affiliate_id, p.rows[0].amount);
+            triggerWebhooks(req.user.company_id, 'payout_completed', { payout_id: req.params.id, affiliate_id: p.rows[0].affiliate_id, amount: parseFloat(p.rows[0].amount), payment_method: p.rows[0].payment_method, transaction_id });
+        }
         res.json({ status: 'completed' });
     } catch (err) {
         console.error('Error completing payout:', err);

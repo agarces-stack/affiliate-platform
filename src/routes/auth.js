@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../models/db');
 const { Notify } = require('../services/notifications');
+const { triggerWebhooks } = require('../services/webhooks');
 
 // Admin login
 router.post('/login', async (req, res) => {
@@ -120,6 +121,7 @@ router.post('/affiliate/register', async (req, res) => {
         );
         // Notificar al admin de nuevo registro
         Notify.newAffiliate(resolved_company_id, first_name, email);
+        triggerWebhooks(resolved_company_id, 'new_affiliate', { affiliate_id: result.rows[0].id, email, name: first_name, ref_id: result.rows[0].ref_id, parent_ref_id: parent_ref_id || null });
         // Notificar al parent que tiene nuevo recluta
         if (parent_affiliate_id) {
             Notify.newRecruit(resolved_company_id, parent_affiliate_id, first_name);

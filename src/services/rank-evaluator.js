@@ -1,5 +1,6 @@
 const db = require('../models/db');
 const { Notify } = require('./notifications');
+const { triggerWebhooks } = require('./webhooks');
 
 // Evalúa si un agente califica para subir de rango
 // Se llama después de cada conversión y se puede llamar en batch
@@ -79,6 +80,7 @@ async function evaluateRankUp(affiliateId, companyId) {
             const oldRankData = ranks.find(r => r.rank_number === currentRank);
             const newRankData = ranks.find(r => r.rank_number === newRank);
             Notify.rankPromotion(companyId, affiliateId, oldRankData?.name || `Rank ${currentRank}`, newRankData?.name || `Rank ${newRank}`);
+            triggerWebhooks(companyId, 'rank_promotion', { affiliate_id: affiliateId, old_rank: oldRankData?.name || `Rank ${currentRank}`, new_rank: newRankData?.name || `Rank ${newRank}`, old_rank_number: currentRank, new_rank_number: newRank });
 
             return { promoted: true, oldRank: currentRank, newRank, affiliateId };
         }
