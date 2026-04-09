@@ -7,6 +7,7 @@ const { evaluateRankUp } = require('../services/rank-evaluator');
 const { Notify } = require('../services/notifications');
 const { triggerWebhooks } = require('../services/webhooks');
 const { logPostback, logActivity } = require('../services/audit-log');
+const { evaluateTier } = require('../services/tier-evaluator');
 
 // ============================================
 // POSTBACK - Registrar conversion
@@ -246,8 +247,9 @@ router.get('/', async (req, res) => {
             commission, tracking_method, order_id: order_id || null
         });
 
-        // Evaluar ascenso de rango automático (no bloquea la respuesta)
+        // Evaluar ascenso de rango y tier automático (no bloquea la respuesta)
         evaluateRankUp(affiliate_id, company_id).catch(err => console.error('Rank eval error:', err));
+        if (camp_id) evaluateTier(affiliate_id, camp_id, company_id).catch(err => console.error('Tier eval error:', err));
 
         const responseData = { status: 'ok', conversion_id: convResult.rows[0].id, commission, tracking_method };
         logPostback({ companyId: company_id, endpoint: 'postback', queryParams: req.query, headers: req.headers, ip, status: 'success', statusCode: 200, response: responseData, conversionId: convResult.rows[0].id, affiliateId: affiliate_id, campaignId: camp_id, processingTimeMs: Date.now() - startTime });
@@ -261,17 +263,23 @@ router.get('/', async (req, res) => {
 });
 
 // Calcular comisiones de override (sube por la cadena de padres)
-// Soporta 2 modos:
+// Soporta 4 modos:
 //   'fixed'      - Override fijo por rango (% + fijo configurado independiente)
-//   'difference' - Override por diferencia (estándar seguros: líder gana la diferencia entre su % y el del subordinado)
+//   'difference' - Override por diferencia (estándar seguros)
+//   'relative'   - % de la comisión del nivel anterior (cadena)
+//   'split'      - Se descuenta del afiliado (solo 1 nivel)
 async function calculateOverrideCommissions(conversionId, affiliateId, companyId, campaignId, saleAmount) {
     try {
         // Obtener config de la empresa
         const compResult = await db.query(
-            'SELECT max_recruitment_depth, override_mode FROM companies WHERE id = $1', [companyId]
+            'SELECT max_recruitment_depth, override_mode, mlm_commission_type FROM companies WHERE id = $1', [companyId]
         );
         const maxDepth = compResult.rows[0]?.max_recruitment_depth || 10;
         const overrideMode = compResult.rows[0]?.override_mode || 'fixed';
+        const mlmType = compResult.rows[0]?.mlm_commission_type || 'amount_based';
+
+        // Para modo 'relative', trackear la comisión del nivel anterior
+        let previousLevelCommission = 0;
 
         // Para modo 'difference', necesitamos el % del subordinado inmediato
         let previousDirectPercent = 0;
@@ -323,41 +331,56 @@ async function calculateOverrideCommissions(conversionId, affiliateId, companyId
                 const rc = rankComm.rows[0];
 
                 if (overrideMode === 'difference') {
-                    // ============================================
                     // MODO DIFERENCIA (estándar seguros)
-                    // El parent gana: (su % directo - % del subordinado) * monto
-                    // Si la diferencia es 0 o negativa, no gana override (compresión natural)
-                    // ============================================
                     const parentDirectPercent = parseFloat(rc.direct_commission_percent) || 0;
                     const diffPercent = parentDirectPercent - previousDirectPercent;
-
                     if (diffPercent > 0) {
-                        overrideCommission = saleAmount * diffPercent / 100;
-                        // También sumar fijo si está configurado
-                        overrideCommission += parseFloat(rc.override_commission_fixed) || 0;
+                        overrideCommission = saleAmount * diffPercent / 100 + (parseFloat(rc.override_commission_fixed) || 0);
                     }
-                    // Actualizar el % anterior para el siguiente nivel
                     previousDirectPercent = parentDirectPercent;
 
+                } else if (mlmType === 'relative') {
+                    // MODO RELATIVE: % de la comisión del nivel anterior
+                    const overridePercent = parseFloat(rc.override_commission_percent) || 0;
+                    if (level === 1) {
+                        // Primer nivel: % de la comisión directa del agente
+                        const sellerComm = await db.query('SELECT commission FROM conversions WHERE id = $1', [conversionId]);
+                        previousLevelCommission = parseFloat(sellerComm.rows[0]?.commission) || 0;
+                    }
+                    overrideCommission = previousLevelCommission * overridePercent / 100;
+                    previousLevelCommission = overrideCommission; // Para el siguiente nivel
+
+                } else if (mlmType === 'split' && level === 1) {
+                    // MODO SPLIT: se descuenta del afiliado (solo 1 nivel)
+                    const splitPercent = parseFloat(rc.override_commission_percent) || 0;
+                    const sellerComm = await db.query('SELECT commission FROM conversions WHERE id = $1', [conversionId]);
+                    const originalComm = parseFloat(sellerComm.rows[0]?.commission) || 0;
+                    overrideCommission = originalComm * splitPercent / 100;
+                    // Descontar del afiliado original
+                    if (overrideCommission > 0) {
+                        await db.query('UPDATE affiliates SET balance = GREATEST(balance - $1, 0), total_commission = GREATEST(total_commission - $1, 0) WHERE id = $2', [overrideCommission, affiliateId]);
+                    }
+
+                } else if (mlmType === 'commission_based') {
+                    // MODO COMMISSION BASED: % de la comisión del afiliado
+                    const sellerComm = await db.query('SELECT commission FROM conversions WHERE id = $1', [conversionId]);
+                    const originalComm = parseFloat(sellerComm.rows[0]?.commission) || 0;
+                    overrideCommission = originalComm * (parseFloat(rc.override_commission_percent) || 0) / 100;
+
                 } else {
-                    // ============================================
-                    // MODO FIJO (override independiente por rango)
-                    // ============================================
-                    // Verificar si hay override específico por nivel de profundidad
+                    // MODO FIJO (default) / AMOUNT BASED
                     const byLevel = rc.override_by_level || [];
                     const levelConfig = byLevel.find(l => l.level === level);
-
                     if (levelConfig) {
-                        const percentComm = saleAmount * (parseFloat(levelConfig.percent) || 0) / 100;
-                        const fixedComm = parseFloat(levelConfig.fixed) || 0;
-                        overrideCommission = percentComm + fixedComm;
+                        overrideCommission = saleAmount * (parseFloat(levelConfig.percent) || 0) / 100 + (parseFloat(levelConfig.fixed) || 0);
                     } else {
-                        const percentComm = saleAmount * (parseFloat(rc.override_commission_percent) || 0) / 100;
-                        const fixedComm = parseFloat(rc.override_commission_fixed) || 0;
-                        overrideCommission = percentComm + fixedComm;
+                        overrideCommission = saleAmount * (parseFloat(rc.override_commission_percent) || 0) / 100 + (parseFloat(rc.override_commission_fixed) || 0);
                     }
                 }
             }
+
+            // Para split, solo 1 nivel
+            if (mlmType === 'split' && level > 1) break;
 
             if (overrideCommission > 0) {
                 // Registrar comisión MLM

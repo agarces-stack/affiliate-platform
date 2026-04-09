@@ -101,6 +101,17 @@ router.get('/', async (req, res) => {
         // Actualizar contador (solo si no es bot)
         if (!is_bot) {
             await db.query('UPDATE affiliates SET total_clicks = total_clicks + 1 WHERE id = $1', [affiliate.id]);
+
+            // CPC: Comisión por click (si la campaña lo tiene configurado)
+            if (campaign.commission_type === 'cpc' && is_unique) {
+                const cpcAmount = parseFloat(campaign.commission_amount) || 0;
+                if (cpcAmount > 0) {
+                    await db.query(
+                        'UPDATE affiliates SET balance = balance + $1, total_commission = total_commission + $1 WHERE id = $2',
+                        [cpcAmount, affiliate.id]
+                    );
+                }
+            }
         }
 
         // Setear cookie

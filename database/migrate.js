@@ -79,6 +79,11 @@ async function migrate() {
             console.log('RAG migration skipped (pgvector may not be installed):', ragErr.message);
         }
 
+        // Ejecutar migration de tiered avanzado
+        const tieredMigration = fs.readFileSync(path.join(__dirname, 'migration_tiered_advanced.sql'), 'utf8');
+        await pool.query(tieredMigration);
+        console.log('Tiered/Progressive tables created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`

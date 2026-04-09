@@ -129,6 +129,12 @@
         </div>
     </div>
 
+    <!-- TIER PROGRESS -->
+    <div class="link-box" id="tierProgress" style="display:none">
+        <h3>Tier Progress</h3>
+        <div id="tierContent"></div>
+    </div>
+
     <div class="link-box">
         <h3 data-i18n="team.tracking_links">Your Tracking Links</h3>
         <label style="color:#94a3b8;font-size:13px">Select Campaign:</label>
@@ -258,6 +264,7 @@ async function showPortal(){
         document.getElementById('st_rate').textContent=s.conversion_rate||'0%';
     }catch(e){}
     loadWallet();
+    loadTierProgress();
     loadTeam();
     loadAffNotifs();
 }
@@ -303,6 +310,22 @@ async function loadTeam(){
     }catch(e){console.error('Team load error:',e)}
 }
 function esc(s){if(!s)return'';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML}
+
+async function loadTierProgress(){
+    try{
+        const decoded=JSON.parse(atob(affToken.split('.')[1]));
+        const tiers=await fetch(API+'/api/tiers/affiliate/'+decoded.id,{headers:{'Authorization':'Bearer '+affToken}}).then(r=>r.json());
+        if(!tiers.length){document.getElementById('tierProgress').style.display='none';return}
+        document.getElementById('tierProgress').style.display='block';
+        document.getElementById('tierContent').innerHTML=tiers.map(t=>{
+            const pct=Math.min(100,Math.round((t.conversions_count/(t.min_conversions||1))*100));
+            return`<div style="margin-bottom:12px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px"><strong style="color:#e2e8f0">${esc(t.campaign_name)}</strong><span style="color:#8b5cf6;font-weight:700">${esc(t.tier_name)}</span></div>
+                <div style="background:#0f172a;border-radius:8px;height:8px;overflow:hidden"><div style="background:#8b5cf6;height:100%;width:${pct}%;border-radius:8px;transition:width 0.3s"></div></div>
+                <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:#64748b"><span>${t.conversions_count} sales · $${Number(t.revenue_total||0).toFixed(0)} revenue</span><span>${pct}%</span></div>
+            </div>`}).join('');
+    }catch(e){}
+}
 
 async function loadWallet(){
     try{
