@@ -12,5 +12,8 @@
 ## Reglas de Negocio
 - [Reglas MLM](MLM-RULES.md) - Modelo de comisiones, modos de override, reclutamiento, ascenso automático, fraud detection
 
+## Comparativa
+- [TrackNow vs MagnetRaffic](TRACKNOW-COMPARISON.md) - Comparación feature por feature (Score: MR 30, Igual 43, TN 1)
+
 ## Historial
 - [Changelog](CHANGELOG.md) - Historial completo de versiones y cambios
