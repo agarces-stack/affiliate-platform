@@ -1,7 +1,7 @@
 const db = require('../models/db');
 
-const CHUNK_SIZE = 500; // caracteres por chunk
-const CHUNK_OVERLAP = 100; // overlap entre chunks
+const CHUNK_SIZE = parseInt(process.env.RAG_CHUNK_SIZE) || 500;
+const CHUNK_OVERLAP = parseInt(process.env.RAG_CHUNK_OVERLAP) || 100;
 
 // ============================================
 // EMBEDDINGS - Genera vectores del texto
@@ -15,7 +15,7 @@ async function getEmbedding(text) {
         const res = await fetch('https://api.openai.com/v1/embeddings', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ model: 'text-embedding-3-small', input: text })
+            body: JSON.stringify({ model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small', input: text })
         });
         if (!res.ok) throw new Error(`OpenAI embedding error: ${res.status}`);
         const data = await res.json();
@@ -184,9 +184,9 @@ async function ragChat(question, companyId, options = {}) {
             'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001',
             max_tokens: 2048,
-            system: `Eres el asistente AI de MagnetRaffic, una plataforma de seguros y ventas multinivel.
+            system: `Eres el asistente AI de ${process.env.APP_NAME || 'MagnetRaffic'}, una plataforma de seguros y ventas multinivel.
 Responde basándote SOLO en la información proporcionada en el contexto.
 Si no tienes información suficiente, dilo claramente.
 Responde en el mismo idioma que la pregunta.

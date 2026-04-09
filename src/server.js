@@ -146,7 +146,7 @@ app.get('/pixel.gif', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`MagnetRaffic running on port ${PORT}`);
+    console.log(`${process.env.APP_NAME || 'MagnetRaffic'} running on port ${PORT}`);
     console.log(`Tracking URL: ${process.env.TRACKING_DOMAIN || 'http://localhost:' + PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });

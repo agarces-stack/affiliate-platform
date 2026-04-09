@@ -95,7 +95,9 @@ async function migrate() {
         `);
 
         // Crear admin user
-        const adminPassword = await bcrypt.hash('admin2026', 10);
+        const seedPassword = process.env.SEED_ADMIN_PASSWORD || 'ChangeMeOnFirstLogin_' + Date.now();
+        const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+        const adminPassword = await bcrypt.hash(seedPassword, rounds);
         await pool.query(`
             INSERT INTO users (company_id, email, password_hash, name, role)
             VALUES (1, 'admin@magnetraffic.com', $1, 'Admin MagnetRaffic', 'admin')
@@ -114,10 +116,10 @@ async function migrate() {
             ON CONFLICT (email) DO NOTHING
         `, [adminPassword]);
 
-        // Crear campañas
+        // Crear campañas de ejemplo
         await pool.query(`
             INSERT INTO campaigns (company_id, name, description, url, commission_type, commission_amount, commission_percent, cookie_days)
-            VALUES (2, 'Traduce - Referral Program', 'Refiere abogados de inmigracion a Traduce y gana comision por cada traduccion', 'https://traduce.com', 'cpa', 25.00, 0, 30)
+            VALUES (2, 'Traduce - Referral Program', 'Programa de referidos Traduce', 'https://traduce.com', 'cpa', 25.00, 0, 30)
             ON CONFLICT DO NOTHING
         `);
 
@@ -130,9 +132,9 @@ async function migrate() {
         console.log('Seed data created!');
         console.log('');
         console.log('=== MIGRATION COMPLETE ===');
-        console.log('Admin login: admin@magnetraffic.com / admin2026');
-        console.log('Admin login: admin@traduce.com / admin2026');
-        console.log('Admin login: admin@trebolife.com / admin2026');
+        console.log('Admin emails: admin@magnetraffic.com, admin@traduce.com, admin@trebolife.com');
+        console.log('Password: set via SEED_ADMIN_PASSWORD env var (change immediately after first login)');
+        console.log('To change password: npm run change-password admin@magnetraffic.com NewSecurePassword');
         console.log('');
 
     } catch (err) {

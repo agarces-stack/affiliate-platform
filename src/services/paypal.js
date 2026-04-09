@@ -49,7 +49,7 @@ class PayPalService {
             body: JSON.stringify({
                 sender_batch_header: {
                     sender_batch_id: batchId,
-                    email_subject: 'You have a payment from MagnetRaffic',
+                    email_subject: `You have a payment from ${process.env.APP_NAME || 'MagnetRaffic'}`,
                     email_message: note || 'Your commission payout has been processed.',
                     recipient_type: 'EMAIL'
                 },
@@ -99,7 +99,7 @@ class PayPalService {
             body: JSON.stringify({
                 sender_batch_header: {
                     sender_batch_id: batchId,
-                    email_subject: 'You have a payment from MagnetRaffic',
+                    email_subject: `You have a payment from ${process.env.APP_NAME || 'MagnetRaffic'}`,
                     email_message: note || 'Your commission payout has been processed.',
                     recipient_type: 'EMAIL'
                 },

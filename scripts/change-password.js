@@ -25,8 +25,10 @@ async function changePassword() {
             process.exit(1);
         }
 
-        const hash = await bcrypt.hash(newPassword, 10);
-        await pool.query(`UPDATE ${table} SET password_hash = $1 WHERE email = $2`, [hash, email]);
+        const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+        const hash = await bcrypt.hash(newPassword, rounds);
+        const safeTable = isAffiliate ? 'affiliates' : 'users';
+        await pool.query(`UPDATE ${safeTable} SET password_hash = $1 WHERE email = $2`, [hash, email]);
 
         console.log(`Password updated for ${email} (${isAffiliate ? 'affiliate' : 'admin'})`);
     } catch (err) {

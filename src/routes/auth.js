@@ -20,7 +20,7 @@ router.post('/login', async (req, res) => {
 
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role, company_id: user.company_id },
-            process.env.JWT_SECRET, { expiresIn: '7d' }
+            process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRY || '7d' }
         );
         res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
     } catch (err) {
@@ -44,7 +44,7 @@ router.post('/affiliate/login', async (req, res) => {
 
         const token = jwt.sign(
             { id: affiliate.id, email: affiliate.email, role: 'affiliate', ref_id: affiliate.ref_id, company_id: affiliate.company_id },
-            process.env.JWT_SECRET, { expiresIn: '7d' }
+            process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRY || '7d' }
         );
         res.json({ token, affiliate: { id: affiliate.id, email: affiliate.email, ref_id: affiliate.ref_id, name: affiliate.first_name } });
     } catch (err) {
@@ -108,7 +108,7 @@ router.post('/affiliate/register', async (req, res) => {
             }
         }
 
-        const password_hash = await bcrypt.hash(password, 10);
+        const password_hash = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
         const ref_id = 'AFF' + Date.now().toString(36).toUpperCase();
 
         const result = await db.query(

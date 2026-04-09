@@ -24,7 +24,7 @@ async function createAdmin() {
             process.exit(1);
         }
 
-        const hash = await bcrypt.hash(password, 10);
+        const hash = await bcrypt.hash(password, parseInt(process.env.BCRYPT_ROUNDS) || 12);
         const result = await pool.query(
             `INSERT INTO users (company_id, email, password_hash, name, role)
              VALUES ($1, $2, $3, $4, 'admin') RETURNING id, email`,

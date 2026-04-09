@@ -1,6 +1,7 @@
 const db = require('../models/db');
 
-const SYSTEM_PROMPT = `Eres el asistente AI de MagnetRaffic, una plataforma de gestión de equipos de ventas multinivel para agencias de seguros y distribuidores.
+const appName = process.env.APP_NAME || 'MagnetRaffic';
+const SYSTEM_PROMPT = `Eres el asistente AI de ${appName}, una plataforma de gestión de equipos de ventas multinivel para agencias de seguros y distribuidores.
 
 Tu trabajo es interpretar lo que el admin quiere crear y generar la configuración exacta en JSON.
 
@@ -101,7 +102,7 @@ async function askAI(prompt, companyId) {
             'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-            model: 'claude-haiku-4-5-20251001',
+            model: process.env.AI_MODEL || 'claude-haiku-4-5-20251001',
             max_tokens: 4096,
             system: SYSTEM_PROMPT + context,
             messages: [{ role: 'user', content: prompt }]
