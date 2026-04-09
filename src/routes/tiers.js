@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 const { evaluateAllTiers, calculateProgressiveCommission } = require('../services/tier-evaluator');
 
 // ============================================
@@ -9,7 +9,7 @@ const { evaluateAllTiers, calculateProgressiveCommission } = require('../service
 // ============================================
 
 // Listar tiers de una campaña
-router.get('/campaign/:campaignId', authMiddleware, async (req, res) => {
+router.get('/campaign/:campaignId', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT * FROM commission_tiers WHERE company_id = $1 AND campaign_id = $2 ORDER BY tier_number ASC',
@@ -22,7 +22,7 @@ router.get('/campaign/:campaignId', authMiddleware, async (req, res) => {
 });
 
 // Crear tier
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { campaign_id, tier_number, name, commission_percent, commission_fixed,
                 min_conversions, min_revenue, min_commission_earned, min_clicks, min_recruits,
@@ -47,7 +47,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Actualizar tier
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
     try {
         const { name, commission_percent, commission_fixed, min_conversions, min_revenue,
                 min_commission_earned, min_clicks, min_recruits, timeframe, is_active } = req.body;
@@ -70,7 +70,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Evaluar todos los afiliados de una campaña
-router.post('/evaluate/:campaignId', authMiddleware, async (req, res) => {
+router.post('/evaluate/:campaignId', adminAuth, async (req, res) => {
     try {
         const result = await evaluateAllTiers(req.params.campaignId, req.user.company_id);
         res.json(result);
@@ -80,7 +80,7 @@ router.post('/evaluate/:campaignId', authMiddleware, async (req, res) => {
 });
 
 // Ver tier actual de un afiliado
-router.get('/affiliate/:affiliateId', authMiddleware, async (req, res) => {
+router.get('/affiliate/:affiliateId', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT at.*, ct.name as tier_name, ct.commission_percent, ct.commission_fixed,
@@ -102,7 +102,7 @@ router.get('/affiliate/:affiliateId', authMiddleware, async (req, res) => {
 // ============================================
 
 // Listar reglas progressive
-router.get('/progressive/:campaignId', authMiddleware, async (req, res) => {
+router.get('/progressive/:campaignId', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT * FROM progressive_rules WHERE company_id = $1 AND campaign_id = $2 ORDER BY min_amount ASC',
@@ -115,7 +115,7 @@ router.get('/progressive/:campaignId', authMiddleware, async (req, res) => {
 });
 
 // Crear regla progressive
-router.post('/progressive', authMiddleware, async (req, res) => {
+router.post('/progressive', adminAuth, async (req, res) => {
     try {
         const { campaign_id, product_id, min_amount, max_amount, commission_percent, commission_fixed } = req.body;
         const result = await db.query(
@@ -135,7 +135,7 @@ router.post('/progressive', authMiddleware, async (req, res) => {
 // ============================================
 
 // Import products via CSV (texto)
-router.post('/import/products', authMiddleware, async (req, res) => {
+router.post('/import/products', adminAuth, async (req, res) => {
     try {
         const { csv, campaign_id } = req.body;
         if (!csv) return res.status(400).json({ error: 'CSV data required' });
@@ -174,7 +174,7 @@ router.post('/import/products', authMiddleware, async (req, res) => {
 });
 
 // Import payouts via CSV
-router.post('/import/payouts', authMiddleware, async (req, res) => {
+router.post('/import/payouts', adminAuth, async (req, res) => {
     try {
         const { csv } = req.body;
         if (!csv) return res.status(400).json({ error: 'CSV data required' });

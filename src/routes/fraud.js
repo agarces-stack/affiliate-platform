@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 // Listar fraud logs
-router.get('/logs', authMiddleware, async (req, res) => {
+router.get('/logs', adminAuth, async (req, res) => {
     try {
         const { severity, limit = 100 } = req.query;
         let query = `SELECT f.*, a.email as affiliate_email, a.ref_id
@@ -26,7 +26,7 @@ router.get('/logs', authMiddleware, async (req, res) => {
 });
 
 // Stats de fraude
-router.get('/stats', authMiddleware, async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
     try {
         const compId = req.user.company_id;
         const [total, today, critical, high, blocked] = await Promise.all([
@@ -50,7 +50,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 });
 
 // Listar IPs bloqueadas
-router.get('/blocked-ips', authMiddleware, async (req, res) => {
+router.get('/blocked-ips', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT * FROM blocked_ips WHERE company_id = $1 ORDER BY created_at DESC',
@@ -64,7 +64,7 @@ router.get('/blocked-ips', authMiddleware, async (req, res) => {
 });
 
 // Bloquear IP
-router.post('/block-ip', authMiddleware, async (req, res) => {
+router.post('/block-ip', adminAuth, async (req, res) => {
     try {
         const { ip_address, reason } = req.body;
         if (!ip_address) return res.status(400).json({ error: 'IP address is required' });
@@ -82,7 +82,7 @@ router.post('/block-ip', authMiddleware, async (req, res) => {
 });
 
 // Desbloquear IP
-router.delete('/unblock-ip/:ip', authMiddleware, async (req, res) => {
+router.delete('/unblock-ip/:ip', adminAuth, async (req, res) => {
     try {
         await db.query(
             'UPDATE blocked_ips SET is_active = false WHERE company_id = $1 AND ip_address = $2',
@@ -96,7 +96,7 @@ router.delete('/unblock-ip/:ip', authMiddleware, async (req, res) => {
 });
 
 // Top IPs sospechosas
-router.get('/suspicious-ips', authMiddleware, async (req, res) => {
+router.get('/suspicious-ips', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT details->>'ip' as ip, COUNT(*) as alert_count,

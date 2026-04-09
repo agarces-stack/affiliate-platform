@@ -116,8 +116,9 @@ router.get('/', async (req, res) => {
 
         // Setear cookie
         const cookieDays = campaign.cookie_days || 30;
-        res.cookie('_aff_click', click_id, { maxAge: cookieDays * 86400000, httpOnly: true, sameSite: 'lax' });
-        res.cookie('_aff_ref', ref_id, { maxAge: cookieDays * 86400000, httpOnly: true, sameSite: 'lax' });
+        const isProduction = process.env.NODE_ENV === 'production';
+        res.cookie('_aff_click', click_id, { maxAge: cookieDays * 86400000, httpOnly: true, sameSite: 'lax', secure: isProduction });
+        res.cookie('_aff_ref', ref_id, { maxAge: cookieDays * 86400000, httpOnly: true, sameSite: 'lax', secure: isProduction });
 
         // Redirigir
         const redirectUrl = new URL(campaign.url);

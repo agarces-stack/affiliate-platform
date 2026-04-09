@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 // Listar afiliados
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const { status, search, page = 1, limit = 50 } = req.query;
         const offset = (page - 1) * limit;
@@ -27,7 +27,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Obtener afiliado por ID
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', adminAuth, async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM affiliates WHERE id = $1 AND company_id = $2', [req.params.id, req.user.company_id]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'Not found' });
@@ -39,7 +39,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Aprobar/Rechazar afiliado
-router.patch('/:id/status', authMiddleware, async (req, res) => {
+router.patch('/:id/status', adminAuth, async (req, res) => {
     try {
         const { status } = req.body;
         if (!status) return res.status(400).json({ error: 'Status is required' });
@@ -52,7 +52,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
 });
 
 // Estadisticas de un afiliado (con verificación multi-tenant y balance)
-router.get('/:id/stats', authMiddleware, async (req, res) => {
+router.get('/:id/stats', adminAuth, async (req, res) => {
     try {
         const { start_date, end_date } = req.query;
         const affId = req.params.id;

@@ -45,26 +45,35 @@ router.post('/conversion', apiKeyAuth, async (req, res) => {
             affId = aff.rows[0].id;
         }
 
-        const result = await db.query(
-            `INSERT INTO conversions (company_id, campaign_id, affiliate_id, order_id, amount,
-             commission, customer_email, customer_name, tracking_method, status)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-            [req.companyId, campaign_id || null, affId, order_id || null,
-             parseFloat(amount) || 0, parseFloat(commission) || 0,
-             customer_email || null, customer_name || null, 'webhook', status || 'pending']
-        );
-
-        // Actualizar totales
-        if (parseFloat(commission) > 0) {
-            await db.query(
-                `UPDATE affiliates SET total_conversions = total_conversions + 1,
-                 total_revenue = total_revenue + $1, total_commission = total_commission + $2,
-                 balance = balance + $2 WHERE id = $3`,
-                [parseFloat(amount) || 0, parseFloat(commission) || 0, affId]
+        // Transacción atómica para conversion + balance
+        const client = await db.pool.connect();
+        try {
+            await client.query('BEGIN');
+            const result = await client.query(
+                `INSERT INTO conversions (company_id, campaign_id, affiliate_id, order_id, amount,
+                 commission, customer_email, customer_name, tracking_method, status)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+                [req.companyId, campaign_id || null, affId, order_id || null,
+                 parseFloat(amount) || 0, parseFloat(commission) || 0,
+                 customer_email || null, customer_name || null, 'webhook', status || 'pending']
             );
-        }
 
-        res.json({ status: 'ok', conversion_id: result.rows[0].id });
+            if (parseFloat(commission) > 0) {
+                await client.query(
+                    `UPDATE affiliates SET total_conversions = total_conversions + 1,
+                     total_revenue = total_revenue + $1, total_commission = total_commission + $2,
+                     balance = balance + $2 WHERE id = $3`,
+                    [parseFloat(amount) || 0, parseFloat(commission) || 0, affId]
+                );
+            }
+            await client.query('COMMIT');
+            res.json({ status: 'ok', conversion_id: result.rows[0].id });
+        } catch (txErr) {
+            await client.query('ROLLBACK');
+            throw txErr;
+        } finally {
+            client.release();
+        }
     } catch (err) {
         console.error('Hook conversion error:', err);
         res.status(500).json({ error: 'Failed to create conversion' });
@@ -94,7 +103,7 @@ router.post('/affiliate', apiKeyAuth, async (req, res) => {
             `INSERT INTO affiliates (company_id, ref_id, email, password_hash, first_name, last_name,
              phone, company_name, parent_affiliate_id, rank, status)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, ref_id`,
-            [req.companyId, ref_id, email, 'webhook_created_no_password',
+            [req.companyId, ref_id, email, '$2a$10$webhook_created_needs_password_reset_' + Date.now(),
              first_name, last_name || null, phone || null, company_name || null,
              parentId, rank || 1, status || 'pending']
         );

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT c.*, a.email as affiliate_email, a.ref_id, ca.name as campaign_name
@@ -20,7 +20,7 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { campaign_id, affiliate_id, code, discount_type, discount_value, max_usage, expires_at } = req.body;
         if (!code || !affiliate_id) return res.status(400).json({ error: 'Code and affiliate ID are required' });
@@ -38,7 +38,7 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
     try {
         await db.query('UPDATE coupons SET is_active = false WHERE id = $1 AND company_id = $2', [req.params.id, req.user.company_id]);
         res.json({ status: 'deactivated' });

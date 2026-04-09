@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 // Listar grupos
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT cg.*,
@@ -23,7 +23,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Obtener grupo con miembros
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', adminAuth, async (req, res) => {
     try {
         const group = await db.query(
             'SELECT * FROM commission_groups WHERE id = $1 AND company_id = $2',
@@ -56,7 +56,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Crear grupo
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { name, description, default_commission_percent, default_commission_fixed,
                 override_commission_percent, override_commission_fixed, manager_id,
@@ -87,7 +87,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Actualizar grupo
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
     try {
         const { name, description, default_commission_percent, default_commission_fixed,
                 override_commission_percent, override_commission_fixed, manager_id,
@@ -121,7 +121,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Asignar afiliado a grupo
-router.post('/:id/members', authMiddleware, async (req, res) => {
+router.post('/:id/members', adminAuth, async (req, res) => {
     try {
         const { affiliate_ids } = req.body;
         if (!affiliate_ids?.length) return res.status(400).json({ error: 'affiliate_ids array required' });
@@ -142,7 +142,7 @@ router.post('/:id/members', authMiddleware, async (req, res) => {
 });
 
 // Remover afiliado del grupo
-router.delete('/:id/members/:affiliateId', authMiddleware, async (req, res) => {
+router.delete('/:id/members/:affiliateId', adminAuth, async (req, res) => {
     try {
         await db.query(
             'UPDATE affiliates SET commission_group_id = NULL WHERE id = $1 AND commission_group_id = $2 AND company_id = $3',
@@ -156,9 +156,13 @@ router.delete('/:id/members/:affiliateId', authMiddleware, async (req, res) => {
 });
 
 // Configurar comisión del grupo por campaña/producto
-router.post('/:id/commissions', authMiddleware, async (req, res) => {
+router.post('/:id/commissions', adminAuth, async (req, res) => {
     try {
         const { campaign_id, product_id, commission_percent, commission_fixed } = req.body;
+
+        // Verify group belongs to company
+        const groupCheck = await db.query('SELECT id FROM commission_groups WHERE id = $1 AND company_id = $2', [req.params.id, req.user.company_id]);
+        if (groupCheck.rows.length === 0) return res.status(404).json({ error: 'Group not found' });
 
         const result = await db.query(
             `INSERT INTO group_commissions (group_id, campaign_id, product_id, commission_percent, commission_fixed)
@@ -177,13 +181,17 @@ router.post('/:id/commissions', authMiddleware, async (req, res) => {
 });
 
 // Stats del grupo
-router.get('/:id/stats', authMiddleware, async (req, res) => {
+router.get('/:id/stats', adminAuth, async (req, res) => {
     try {
         const gid = req.params.id;
+        // Verify group belongs to company
+        const groupCheck = await db.query('SELECT id FROM commission_groups WHERE id = $1 AND company_id = $2', [gid, req.user.company_id]);
+        if (groupCheck.rows.length === 0) return res.status(404).json({ error: 'Group not found' });
+
         const [members, revenue, commissions] = await Promise.all([
-            db.query("SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='approved') as active FROM affiliates WHERE commission_group_id = $1", [gid]),
-            db.query("SELECT COALESCE(SUM(c.amount),0) as revenue, COALESCE(SUM(c.commission),0) as commission, COUNT(*) as sales FROM conversions c JOIN affiliates a ON c.affiliate_id = a.id WHERE a.commission_group_id = $1", [gid]),
-            db.query("SELECT COALESCE(SUM(balance),0) as total_balance FROM affiliates WHERE commission_group_id = $1", [gid]),
+            db.query("SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='approved') as active FROM affiliates WHERE commission_group_id = $1 AND company_id = $2", [gid, req.user.company_id]),
+            db.query("SELECT COALESCE(SUM(c.amount),0) as revenue, COALESCE(SUM(c.commission),0) as commission, COUNT(*) as sales FROM conversions c JOIN affiliates a ON c.affiliate_id = a.id WHERE a.commission_group_id = $1 AND a.company_id = $2", [gid, req.user.company_id]),
+            db.query("SELECT COALESCE(SUM(balance),0) as total_balance FROM affiliates WHERE commission_group_id = $1 AND company_id = $2", [gid, req.user.company_id]),
         ]);
         res.json({
             members: parseInt(members.rows[0].total),

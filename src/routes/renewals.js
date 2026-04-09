@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 const { Notify } = require('../services/notifications');
 
 // Listar renovaciones con filtros
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const { status, affiliate_id, campaign_id, policy_number, period_start, period_end, page = 1, limit = 50 } = req.query;
         const offset = (page - 1) * limit;
@@ -43,7 +43,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Stats de renovaciones
-router.get('/stats', authMiddleware, async (req, res) => {
+router.get('/stats', adminAuth, async (req, res) => {
     try {
         const compId = req.user.company_id;
         const [total, pending, approved, thisMonth, revenue] = await Promise.all([
@@ -72,7 +72,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
 });
 
 // Crear renovación manual
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { original_conversion_id, affiliate_id, ref_id, campaign_id,
                 amount, policy_number, customer_email, customer_name,
@@ -153,7 +153,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Aprobar renovación
-router.patch('/:id/approve', authMiddleware, async (req, res) => {
+router.patch('/:id/approve', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             "UPDATE renewals SET status = 'approved', approved_at = NOW() WHERE id = $1 AND company_id = $2 AND status = 'pending' RETURNING id",
@@ -168,7 +168,7 @@ router.patch('/:id/approve', authMiddleware, async (req, res) => {
 });
 
 // Cancelar renovación (revertir comisión)
-router.patch('/:id/cancel', authMiddleware, async (req, res) => {
+router.patch('/:id/cancel', adminAuth, async (req, res) => {
     try {
         const renewal = await db.query(
             "SELECT * FROM renewals WHERE id = $1 AND company_id = $2 AND status IN ('pending','approved')",
@@ -194,7 +194,7 @@ router.patch('/:id/cancel', authMiddleware, async (req, res) => {
 });
 
 // Upcoming renewals (pólizas que vencen pronto)
-router.get('/upcoming', authMiddleware, async (req, res) => {
+router.get('/upcoming', adminAuth, async (req, res) => {
     try {
         const { days = 30 } = req.query;
         // Buscar conversiones con renewal_enabled que no tienen renovación reciente

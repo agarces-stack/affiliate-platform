@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 const { askAI, applyAIConfig } = require('../services/ai-assistant');
 
 // Preview: AI genera la config pero no la aplica
-router.post('/preview', authMiddleware, async (req, res) => {
+router.post('/preview', adminAuth, async (req, res) => {
     try {
         const { prompt } = req.body;
         if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -13,12 +13,12 @@ router.post('/preview', authMiddleware, async (req, res) => {
         res.json({ status: 'preview', config });
     } catch (err) {
         console.error('AI preview error:', err);
-        res.status(500).json({ error: 'AI failed: ' + err.message });
+        res.status(500).json({ error: 'AI request failed. Please try again.' });
     }
 });
 
 // Apply: Aplica la config generada por AI
-router.post('/apply', authMiddleware, async (req, res) => {
+router.post('/apply', adminAuth, async (req, res) => {
     try {
         const { config } = req.body;
         if (!config) return res.status(400).json({ error: 'Config is required' });
@@ -27,12 +27,12 @@ router.post('/apply', authMiddleware, async (req, res) => {
         res.json({ status: 'applied', results });
     } catch (err) {
         console.error('AI apply error:', err);
-        res.status(500).json({ error: 'Failed to apply: ' + err.message });
+        res.status(500).json({ error: 'Failed to apply configuration.' });
     }
 });
 
 // All-in-one: AI genera y aplica
-router.post('/create', authMiddleware, async (req, res) => {
+router.post('/create', adminAuth, async (req, res) => {
     try {
         const { prompt } = req.body;
         if (!prompt) return res.status(400).json({ error: 'Prompt is required' });
@@ -42,7 +42,7 @@ router.post('/create', authMiddleware, async (req, res) => {
         res.json({ status: 'created', config, results });
     } catch (err) {
         console.error('AI create error:', err);
-        res.status(500).json({ error: 'AI failed: ' + err.message });
+        res.status(500).json({ error: 'AI request failed. Please try again.' });
     }
 });
 

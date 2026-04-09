@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 const { evaluateAllRanks } = require('../services/rank-evaluator');
 
 // Listar rangos de la empresa
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT * FROM ranks WHERE company_id = $1 ORDER BY rank_number ASC',
@@ -19,7 +19,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Actualizar nombre/config de un rango
-router.put('/:rankNumber', authMiddleware, async (req, res) => {
+router.put('/:rankNumber', adminAuth, async (req, res) => {
     try {
         const { name, description, color, icon, can_recruit, max_recruit_depth,
                 min_personal_sales, min_team_sales, min_direct_recruits } = req.body;
@@ -45,7 +45,7 @@ router.put('/:rankNumber', authMiddleware, async (req, res) => {
 });
 
 // Configurar comisiones de un rango para una campaña
-router.put('/:rankNumber/commissions/:campaignId', authMiddleware, async (req, res) => {
+router.put('/:rankNumber/commissions/:campaignId', adminAuth, async (req, res) => {
     try {
         const { direct_commission_percent, direct_commission_fixed,
                 override_commission_percent, override_commission_fixed,
@@ -88,7 +88,7 @@ router.put('/:rankNumber/commissions/:campaignId', authMiddleware, async (req, r
 });
 
 // Ver comisiones de todos los rangos para una campaña
-router.get('/commissions/:campaignId', authMiddleware, async (req, res) => {
+router.get('/commissions/:campaignId', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT r.rank_number, r.name, r.color, rc.*
@@ -106,7 +106,7 @@ router.get('/commissions/:campaignId', authMiddleware, async (req, res) => {
 });
 
 // Asignar rango a un agente
-router.patch('/assign/:affiliateId', authMiddleware, async (req, res) => {
+router.patch('/assign/:affiliateId', adminAuth, async (req, res) => {
     try {
         const { rank_number, reason } = req.body;
         if (!rank_number || rank_number < 1 || rank_number > 10) {
@@ -143,7 +143,7 @@ router.patch('/assign/:affiliateId', authMiddleware, async (req, res) => {
 });
 
 // Historial de rangos de un agente
-router.get('/history/:affiliateId', authMiddleware, async (req, res) => {
+router.get('/history/:affiliateId', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT rh.*, u.name as changed_by_name,
@@ -164,7 +164,7 @@ router.get('/history/:affiliateId', authMiddleware, async (req, res) => {
 });
 
 // Evaluar ascensos automáticos para toda la empresa
-router.post('/evaluate', authMiddleware, async (req, res) => {
+router.post('/evaluate', adminAuth, async (req, res) => {
     try {
         const result = await evaluateAllRanks(req.user.company_id);
         res.json(result);
@@ -175,7 +175,7 @@ router.post('/evaluate', authMiddleware, async (req, res) => {
 });
 
 // Obtener configuración de override de la empresa
-router.get('/settings', authMiddleware, async (req, res) => {
+router.get('/settings', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT override_mode, max_recruitment_depth FROM companies WHERE id = $1',
@@ -189,7 +189,7 @@ router.get('/settings', authMiddleware, async (req, res) => {
 });
 
 // Actualizar configuración de override
-router.put('/settings', authMiddleware, async (req, res) => {
+router.put('/settings', adminAuth, async (req, res) => {
     try {
         const { override_mode, max_recruitment_depth } = req.body;
         if (override_mode && !['fixed', 'difference'].includes(override_mode)) {

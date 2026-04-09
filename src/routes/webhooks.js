@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 const VALID_EVENTS = ['new_conversion', 'new_affiliate', 'affiliate_approved', 'payout_completed', 'rank_promotion', 'fraud_alert'];
 
 // Listar webhooks
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT * FROM webhooks WHERE company_id = $1 ORDER BY created_at DESC',
@@ -20,11 +20,22 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Crear webhook
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { name, url, secret, events } = req.body;
         if (!name || !url) return res.status(400).json({ error: 'Name and URL are required' });
         if (!events || !events.length) return res.status(400).json({ error: 'At least one event is required' });
+
+        // SSRF protection - block internal URLs
+        try {
+            const parsed = new URL(url);
+            const host = parsed.hostname.toLowerCase();
+            if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' ||
+                host.startsWith('10.') || host.startsWith('192.168.') || host.startsWith('172.') ||
+                host === '169.254.169.254') {
+                return res.status(400).json({ error: 'Internal/private URLs are not allowed' });
+            }
+        } catch { return res.status(400).json({ error: 'Invalid URL format' }); }
 
         const invalidEvents = events.filter(e => !VALID_EVENTS.includes(e));
         if (invalidEvents.length) return res.status(400).json({ error: `Invalid events: ${invalidEvents.join(', ')}`, valid_events: VALID_EVENTS });
@@ -42,7 +53,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Actualizar webhook
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
     try {
         const { name, url, secret, events, is_active } = req.body;
         const result = await db.query(
@@ -61,7 +72,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Eliminar webhook
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', adminAuth, async (req, res) => {
     try {
         await db.query('DELETE FROM webhooks WHERE id = $1 AND company_id = $2', [req.params.id, req.user.company_id]);
         res.json({ status: 'deleted' });
@@ -72,7 +83,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // Test webhook
-router.post('/:id/test', authMiddleware, async (req, res) => {
+router.post('/:id/test', adminAuth, async (req, res) => {
     try {
         const hook = await db.query('SELECT * FROM webhooks WHERE id = $1 AND company_id = $2', [req.params.id, req.user.company_id]);
         if (hook.rows.length === 0) return res.status(404).json({ error: 'Webhook not found' });

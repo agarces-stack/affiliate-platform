@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 const { getPayPalService } = require('../services/paypal');
 const { Notify } = require('../services/notifications');
 
@@ -10,7 +10,7 @@ const { Notify } = require('../services/notifications');
 // ============================================
 
 // Listar proveedores configurados
-router.get('/providers', authMiddleware, async (req, res) => {
+router.get('/providers', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT id, provider, name, is_active, is_default, min_payout, max_payout,
@@ -27,7 +27,7 @@ router.get('/providers', authMiddleware, async (req, res) => {
 });
 
 // Configurar proveedor de pago
-router.post('/providers', authMiddleware, async (req, res) => {
+router.post('/providers', adminAuth, async (req, res) => {
     try {
         const { provider, name, config, min_payout, max_payout, fee_percent, fee_fixed, is_default } = req.body;
         if (!provider || !name) return res.status(400).json({ error: 'Provider and name required' });
@@ -54,7 +54,7 @@ router.post('/providers', authMiddleware, async (req, res) => {
 });
 
 // Actualizar proveedor
-router.put('/providers/:id', authMiddleware, async (req, res) => {
+router.put('/providers/:id', adminAuth, async (req, res) => {
     try {
         const { name, config, is_active, is_default, min_payout, max_payout, fee_percent, fee_fixed } = req.body;
         if (is_default) {
@@ -82,7 +82,7 @@ router.put('/providers/:id', authMiddleware, async (req, res) => {
 // ============================================
 
 // Procesar pago individual via PayPal
-router.post('/send-paypal/:payoutId', authMiddleware, async (req, res) => {
+router.post('/send-paypal/:payoutId', adminAuth, async (req, res) => {
     const client = await db.pool.connect();
     try {
         await client.query('BEGIN');
@@ -170,7 +170,7 @@ router.post('/send-paypal/:payoutId', authMiddleware, async (req, res) => {
 });
 
 // Procesar pago como Wire/ACH (registrar datos bancarios)
-router.post('/send-wire/:payoutId', authMiddleware, async (req, res) => {
+router.post('/send-wire/:payoutId', adminAuth, async (req, res) => {
     try {
         const { bank_name, account_number, routing_number, swift_code, account_holder, notes } = req.body;
 
@@ -207,7 +207,7 @@ router.post('/send-wire/:payoutId', authMiddleware, async (req, res) => {
 });
 
 // Confirmar que un wire/manual fue completado
-router.patch('/confirm/:transactionId', authMiddleware, async (req, res) => {
+router.patch('/confirm/:transactionId', adminAuth, async (req, res) => {
     try {
         const { transaction_id_external } = req.body;
         const txn = await db.query(
@@ -237,7 +237,7 @@ router.patch('/confirm/:transactionId', authMiddleware, async (req, res) => {
 });
 
 // Verificar estado de batch PayPal
-router.get('/check-paypal/:batchId', authMiddleware, async (req, res) => {
+router.get('/check-paypal/:batchId', adminAuth, async (req, res) => {
     try {
         const paypal = await getPayPalService(req.user.company_id);
         if (!paypal) return res.status(400).json({ error: 'PayPal not configured' });
@@ -269,7 +269,7 @@ router.get('/check-paypal/:batchId', authMiddleware, async (req, res) => {
 });
 
 // Historial de transacciones
-router.get('/transactions', authMiddleware, async (req, res) => {
+router.get('/transactions', adminAuth, async (req, res) => {
     try {
         const { status, limit = 50 } = req.query;
         let query = `SELECT pt.*, a.email as affiliate_email, a.first_name, pp.provider, pp.name as provider_name

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 // Listar campañas
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const result = await db.query('SELECT * FROM campaigns WHERE company_id = $1 ORDER BY created_at DESC', [req.user.company_id]);
         res.json(result.rows);
@@ -15,7 +15,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Crear campaña
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { name, description, url, commission_type, commission_amount, commission_percent,
                 recurring, recurring_months, cookie_days, mlm_enabled, mlm_levels, mlm_commissions,
@@ -42,7 +42,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Asignar afiliado a campaña
-router.post('/:id/affiliates', authMiddleware, async (req, res) => {
+router.post('/:id/affiliates', adminAuth, async (req, res) => {
     try {
         const { affiliate_id, custom_commission_type, custom_commission_amount, custom_commission_percent } = req.body;
         if (!affiliate_id) return res.status(400).json({ error: 'Affiliate ID is required' });
@@ -65,7 +65,7 @@ router.post('/:id/affiliates', authMiddleware, async (req, res) => {
 });
 
 // Stats de campaña (con verificación multi-tenant)
-router.get('/:id/stats', authMiddleware, async (req, res) => {
+router.get('/:id/stats', adminAuth, async (req, res) => {
     try {
         const campId = req.params.id;
 

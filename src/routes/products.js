@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 // ============================================
 // PRODUCTS (Catálogo)
 // ============================================
 
 // Listar productos (opcionalmente por campaña)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const { campaign_id, category, status, include_goals } = req.query;
         let query = `SELECT p.*, c.name as campaign_name
@@ -45,7 +45,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Obtener producto con goals
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id', adminAuth, async (req, res) => {
     try {
         const prod = await db.query(
             'SELECT p.*, c.name as campaign_name FROM products p LEFT JOIN campaigns c ON p.campaign_id = c.id WHERE p.id = $1 AND p.company_id = $2',
@@ -66,7 +66,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 // Crear producto
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     try {
         const { campaign_id, sku, name, description, category, price, commission_type,
                 commission_amount, commission_percent, is_recurring, renewal_period_months,
@@ -95,7 +95,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Actualizar producto
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', adminAuth, async (req, res) => {
     try {
         const { name, description, category, sku, price, commission_type, commission_amount,
                 commission_percent, is_recurring, renewal_period_months, renewal_commission_percent,
@@ -126,7 +126,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Categorías existentes
-router.get('/meta/categories', authMiddleware, async (req, res) => {
+router.get('/meta/categories', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT DISTINCT category FROM products WHERE company_id = $1 AND category IS NOT NULL ORDER BY category',
@@ -143,7 +143,7 @@ router.get('/meta/categories', authMiddleware, async (req, res) => {
 // ============================================
 
 // Listar goals de un producto
-router.get('/:productId/goals', authMiddleware, async (req, res) => {
+router.get('/:productId/goals', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             'SELECT * FROM goals WHERE product_id = $1 AND company_id = $2 ORDER BY step_order ASC',
@@ -157,7 +157,7 @@ router.get('/:productId/goals', authMiddleware, async (req, res) => {
 });
 
 // Crear goal
-router.post('/:productId/goals', authMiddleware, async (req, res) => {
+router.post('/:productId/goals', adminAuth, async (req, res) => {
     try {
         const { slug, name, description, step_order, commission_type, commission_amount,
                 commission_percent, is_final, triggers_renewal, requires_approval, requires_previous_goal } = req.body;
@@ -182,7 +182,7 @@ router.post('/:productId/goals', authMiddleware, async (req, res) => {
 });
 
 // Actualizar goal
-router.put('/:productId/goals/:goalId', authMiddleware, async (req, res) => {
+router.put('/:productId/goals/:goalId', adminAuth, async (req, res) => {
     try {
         const { name, description, step_order, commission_type, commission_amount,
                 commission_percent, is_final, triggers_renewal, requires_approval,
@@ -213,7 +213,7 @@ router.put('/:productId/goals/:goalId', authMiddleware, async (req, res) => {
 // ============================================
 
 // Registrar goal completado (POST desde postback o admin)
-router.post('/track-goal', authMiddleware, async (req, res) => {
+router.post('/track-goal', adminAuth, async (req, res) => {
     try {
         const { conversion_id, product_id, goal_slug, affiliate_id, amount, data } = req.body;
 
@@ -298,7 +298,7 @@ router.post('/track-goal', authMiddleware, async (req, res) => {
 });
 
 // Ver goals completados de una conversión
-router.get('/conversion-goals/:conversionId', authMiddleware, async (req, res) => {
+router.get('/conversion-goals/:conversionId', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT cg.*, g.name as goal_name, g.slug, g.step_order, g.is_final,

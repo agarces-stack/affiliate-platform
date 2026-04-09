@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 // Postback logs (tracking requests)
-router.get('/postbacks', authMiddleware, async (req, res) => {
+router.get('/postbacks', adminAuth, async (req, res) => {
     try {
         const { status, endpoint, affiliate_id, click_id, start_date, end_date, page = 1, limit = 50 } = req.query;
         const offset = (page - 1) * limit;
@@ -35,7 +35,7 @@ router.get('/postbacks', authMiddleware, async (req, res) => {
 });
 
 // Postback log stats
-router.get('/postbacks/stats', authMiddleware, async (req, res) => {
+router.get('/postbacks/stats', adminAuth, async (req, res) => {
     try {
         const compId = req.user.company_id;
         const [total, today, errors, byStatus, byEndpoint, avgTime] = await Promise.all([
@@ -61,7 +61,7 @@ router.get('/postbacks/stats', authMiddleware, async (req, res) => {
 });
 
 // Activity logs (admin audit trail)
-router.get('/activity', authMiddleware, async (req, res) => {
+router.get('/activity', adminAuth, async (req, res) => {
     try {
         const { action, entity_type, user_id, start_date, end_date, page = 1, limit = 50 } = req.query;
         const offset = (page - 1) * limit;

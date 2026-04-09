@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 
 // Reporte de ventas por agente
-router.get('/by-agent', authMiddleware, async (req, res) => {
+router.get('/by-agent', adminAuth, async (req, res) => {
     try {
         const { start_date, end_date, campaign_id, limit = 50 } = req.query;
         const compId = req.user.company_id;
@@ -47,7 +47,7 @@ router.get('/by-agent', authMiddleware, async (req, res) => {
 });
 
 // Reporte de ventas por campaña/producto
-router.get('/by-campaign', authMiddleware, async (req, res) => {
+router.get('/by-campaign', adminAuth, async (req, res) => {
     try {
         const { start_date, end_date } = req.query;
         const compId = req.user.company_id;
@@ -78,7 +78,7 @@ router.get('/by-campaign', authMiddleware, async (req, res) => {
 });
 
 // Reporte de ventas por rango
-router.get('/by-rank', authMiddleware, async (req, res) => {
+router.get('/by-rank', adminAuth, async (req, res) => {
     try {
         const { start_date, end_date } = req.query;
         const compId = req.user.company_id;
@@ -110,7 +110,7 @@ router.get('/by-rank', authMiddleware, async (req, res) => {
 });
 
 // Resumen comparativo (este mes vs mes anterior)
-router.get('/summary', authMiddleware, async (req, res) => {
+router.get('/summary', adminAuth, async (req, res) => {
     try {
         const compId = req.user.company_id;
         const now = new Date();

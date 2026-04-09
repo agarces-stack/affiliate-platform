@@ -58,6 +58,8 @@ router.post('/affiliate/register', async (req, res) => {
     try {
         const { email, password, first_name, last_name, company_name, phone, website, company_id, parent_ref_id } = req.body;
         if (!email || !password || !first_name) return res.status(400).json({ error: 'Email, password and first name are required' });
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Invalid email format' });
+        if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
         const exists = await db.query('SELECT id FROM affiliates WHERE email = $1', [email]);
         if (exists.rows.length > 0) return res.status(400).json({ error: 'Email already registered' });

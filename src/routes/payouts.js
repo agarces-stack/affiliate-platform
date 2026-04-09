@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../models/db');
-const { authMiddleware } = require('../middleware/auth');
+const { adminAuth } = require('../middleware/auth');
 const { Notify } = require('../services/notifications');
 
 // Listar payouts
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', adminAuth, async (req, res) => {
     try {
         const result = await db.query(
             `SELECT p.*, a.email as affiliate_email, a.ref_id, a.first_name
@@ -21,7 +21,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Crear payout (con transacción atómica)
-router.post('/', authMiddleware, async (req, res) => {
+router.post('/', adminAuth, async (req, res) => {
     const client = await db.pool.connect();
     try {
         const { affiliate_id, amount, payment_method, notes } = req.body;
@@ -64,7 +64,7 @@ router.post('/', authMiddleware, async (req, res) => {
 });
 
 // Marcar payout como completado
-router.patch('/:id/complete', authMiddleware, async (req, res) => {
+router.patch('/:id/complete', adminAuth, async (req, res) => {
     try {
         const { transaction_id } = req.body;
         await db.query(
