@@ -8,13 +8,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .login-box button:hover{background:#2563eb}
 .error{color:#ef4444;text-align:center;margin-bottom:10px;font-size:14px}
 .dashboard{display:none}
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:#1e293b;padding:20px;overflow-y:auto;z-index:10}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:#1e293b;padding:20px;overflow-y:auto;z-index:10;display:flex;flex-direction:column}
 .sidebar h2{color:#3b82f6;margin-bottom:30px;font-size:1.3em}
 .sidebar a{display:flex;align-items:center;gap:10px;padding:8px 15px;color:#94a3b8;text-decoration:none;border-radius:8px;margin-bottom:2px;font-size:13px;cursor:pointer;transition:all 0.15s ease}
 .sidebar a:hover{background:#334155;color:#e2e8f0}
 .sidebar a.active{background:#3b82f622;color:#3b82f6;font-weight:600}
 .sidebar a i{font-size:18px;width:20px;text-align:center;flex-shrink:0}
-.sidebar .logout{position:absolute;bottom:20px;left:20px;right:20px;text-align:center;color:#ef4444;cursor:pointer}
+.sidebar #langSelector{margin-top:auto;padding-top:15px;border-top:1px solid #334155}
+.sidebar .logout{text-align:center;color:#ef4444;cursor:pointer;padding:10px 15px;border-radius:8px;margin-top:8px}
+.sidebar .logout:hover{background:#ef444422}
 .main{margin-left:220px;padding:30px}
 .main h1{margin-bottom:25px;font-size:1.8em}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:30px}
