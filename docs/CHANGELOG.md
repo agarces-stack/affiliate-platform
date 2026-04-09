@@ -1,5 +1,84 @@
 # Changelog - MagnetRaffic
 
+## [2.1.0] - 2026-04-09 - Security Audit & Hardcode Fixes
+
+### Security (26 vulnerabilidades arregladas)
+- **CRITICAL**: `adminAuth` middleware en 15 archivos de rutas admin (antes cualquier afiliado tenía acceso admin)
+- **CRITICAL**: Passwords de seed ahora vienen de `SEED_ADMIN_PASSWORD` env var (antes 'admin2026' hardcodeado)
+- **CRITICAL**: No se imprimen passwords en stdout durante migración
+- **HIGH**: Incoming hooks (n8n/GHL) ahora usan transacción atómica BEGIN/COMMIT
+- **HIGH**: Webhook SSRF protection - bloquea URLs a localhost, IPs privadas, AWS metadata
+- **MEDIUM**: Validación de email (regex) y password (min 8 chars) en registro
+- **MEDIUM**: Error messages genéricos en AI endpoints (no exponen detalles internos)
+- **MEDIUM**: Group stats y commissions verifican company_id (previene data leak cross-tenant)
+- **MEDIUM**: Cookies con `secure:true` en producción
+- **MEDIUM**: Webhook affiliates con hash único por creación
+
+### Fixed (Hardcodeados eliminados)
+- `SEED_ADMIN_PASSWORD` - password de admins desde env (antes 'admin2026')
+- `BCRYPT_ROUNDS` - configurable desde env (antes hardcodeado 10, ahora default 12)
+- `JWT_EXPIRY` - configurable desde env (antes '7d' hardcodeado)
+- `AI_MODEL` - modelo Claude configurable (antes hardcodeado en 2 archivos)
+- `EMBEDDING_MODEL` - modelo OpenAI configurable
+- `APP_NAME` - nombre de app configurable (antes 'MagnetRaffic' en 5 lugares)
+- `RAG_CHUNK_SIZE` / `RAG_CHUNK_OVERLAP` - configurables desde env
+- SQL injection fix en change-password.js (tabla ahora hardcodeada segura)
+
+### Added
+- `src/middleware/auth.js`: nuevo `adminAuth` middleware (bloquea afiliados de rutas admin)
+- `src/utils/security.js`: capLimit(), isValidEmail(), isStrongPassword(), safeError(), isValidWebhookUrl()
+- `docs/SECURITY-AUDIT.md`: reporte completo de auditoría con 30 findings
+
+## [2.0.0] - 2026-04-08 - UX Overhaul + TrackNow Parity
+
+### Added - UX
+- Sidebar agrupado en 5 categorías (Dashboard, People, Business, Money, System) con Tabler Icons (6050+ SVG)
+- Toast notifications reemplazan todos los `alert()` (success, error, warning, info)
+- Skeleton loading con shimmer animation CSS puro
+- Section transitions fade-in 300ms
+- Onboarding wizard 5 pasos para primera vez
+- Cmd+K búsqueda overlay desde cualquier sección
+- Portal afiliado con 5 tabs (Wallet, Links, Team, AI, More) en vez de scroll infinito
+- `frontend/i18n/ux.js`: sistema UX compartido (toasts, skeleton, transitions, Cmd+K, onboarding)
+- `docs/UX-KNOWLEDGE-BASE.md`: investigación UX 2026 (progressive disclosure, micro-interactions, empty states)
+
+### Added - TrackNow Parity (10 features)
+- Tiered commissions con 5 timeframes (all_time, this_month, last_month, this_year, last_year)
+- 5 métricas de tier: conversiones, revenue, comisión ganada, clicks, reclutas
+- Relative Commission MLM: % de la comisión del nivel anterior (cadena descendente)
+- Split Commission MLM: se descuenta del afiliado (solo 1 nivel)
+- Progressive Commission: rangos escalonados por monto ($0-1000 al 5%, $1000-5000 al 7%...)
+- CPC (Cost Per Click): comisión automática por click único
+- CSV import de productos y payouts en bulk
+- Widget de progreso de tier en portal del afiliado
+- `docs/TRACKNOW-COMPARISON.md`: comparación feature por feature (MR gana 30, igual 43, TN gana 1)
+
+### Added - Features
+- Commission groups: agrupar afiliados con 4 tipos de comisión de manager
+- AI Assistant: crear campañas con lenguaje natural (Claude API)
+- RAG Knowledge Base: pgvector, embeddings, búsqueda semántica, AI chat para agentes
+- Multi-idioma: Español, Inglés, Portugués, Francés (180+ claves)
+- Catálogo de productos con SKU, categoría, precio + Goals (funnel de etapas)
+- Renovaciones de pólizas con upcoming renewals y comisiones por rango
+- Sales Reports avanzados: por agente, campaña, rango, comparativo mensual
+- PayPal Payouts API + Wire transfers + payment providers configurables
+- Wallet bank-like: balance disponible/pendiente, retiros, extracto bancario
+- Calendario de pagos: on_request, weekly, biweekly, monthly + hold days + auto-approve
+- Postback logs con timing + Activity audit logs
+- Integraciones n8n + GHL: incoming hooks, API keys, webhooks HMAC-SHA256
+- Notificaciones in-app: 10 tipos de evento en admin y portal
+- Scripts CLI: change-password, create-admin, generate-api-key, generate-jwt-secret
+
+### Added - Documentation
+- `docs/PROJECT-COMPLETE.md`: documentación completa del proyecto (96 features, 33+ tablas)
+- `docs/ARCHITECTURE.md`: stack, estructura, DB schema, flujos, seguridad
+- `docs/API.md`: 70+ endpoints documentados
+- `docs/ADMIN-GUIDE.md`: guía paso a paso para administradores
+- `docs/AFFILIATE-GUIDE.md`: guía para agentes/afiliados
+- `docs/DEPLOY.md`: deploy manual, Docker, Nginx+SSL, backup
+- `docs/MLM-RULES.md`: reglas de negocio completas
+- `docs/INTEGRATIONS.md`: guía n8n + GHL + Zapier
+
 ## [1.5.0] - 2026-04-07 (Noche)
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "name": "affiliate-platform",
-  "version": "1.0.0",
-  "description": "Plataforma de affiliate tracking para Traduce y Trebolife",
+  "version": "2.1.0",
+  "description": "Plataforma de gestión de equipos de ventas multinivel para agencias de seguros y distribuidores",
   "main": "src/server.js",
   "scripts": {
     "dev": "node --watch src/server.js",
