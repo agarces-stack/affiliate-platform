@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MagnetRaffic - Admin Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
     <script src="../i18n/translations.js"></script>
+    <script src="../i18n/ux.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0}
@@ -19,8 +21,10 @@
         .dashboard{display:none}
         .sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:#1e293b;padding:20px;overflow-y:auto;z-index:10}
         .sidebar h2{color:#3b82f6;margin-bottom:30px;font-size:1.3em}
-        .sidebar a{display:block;padding:10px 15px;color:#94a3b8;text-decoration:none;border-radius:8px;margin-bottom:5px;font-size:14px;cursor:pointer}
-        .sidebar a:hover,.sidebar a.active{background:#334155;color:#fff}
+        .sidebar a{display:flex;align-items:center;gap:10px;padding:8px 15px;color:#94a3b8;text-decoration:none;border-radius:8px;margin-bottom:2px;font-size:13px;cursor:pointer;transition:all 0.15s ease}
+        .sidebar a:hover{background:#334155;color:#e2e8f0}
+        .sidebar a.active{background:#3b82f622;color:#3b82f6;font-weight:600}
+        .sidebar a i{font-size:18px;width:20px;text-align:center;flex-shrink:0}
         .sidebar .logout{position:absolute;bottom:20px;left:20px;right:20px;text-align:center;color:#ef4444;cursor:pointer}
         .main{margin-left:220px;padding:30px}
         .main h1{margin-bottom:25px;font-size:1.8em}
@@ -68,25 +72,36 @@
 <div class="dashboard" id="dashboardPage">
     <div class="sidebar">
         <h2>MagnetRaffic</h2>
-        <a class="active" onclick="showSection('overview')">Overview</a>
-        <a onclick="showSection('affiliates')">Affiliates</a>
-        <a onclick="showSection('groups')">Groups</a>
-        <a onclick="showSection('campaigns')">Campaigns</a>
-        <a onclick="showSection('products')">Products</a>
-        <a onclick="showSection('conversions')">Conversions</a>
-        <a onclick="showSection('renewals')">Renewals</a>
-        <a onclick="showSection('salesReports')">Sales Reports</a>
-        <a onclick="showSection('coupons')">Coupons</a>
-        <a onclick="showSection('payouts')">Payouts</a>
-        <a onclick="showSection('notifications')">Notifications <span id="notifBadge" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;display:none">0</span></a>
-        <a onclick="showSection('ranks')">Ranks</a>
-        <a onclick="showSection('fraud')">Fraud Detection</a>
-        <a onclick="showSection('logs')">Logs</a>
-        <a onclick="showSection('knowledge')">Knowledge Base</a>
-        <a onclick="showSection('settings')">Settings</a>
-        <a onclick="showSection('pixel')">Tracking Pixel</a>
+
+        <div class="nav-group-title">Dashboard</div>
+        <a class="active" onclick="showSection('overview')"><i class="ti ti-chart-bar"></i> <span>Overview</span></a>
+
+        <div class="nav-group-title">People</div>
+        <a onclick="showSection('affiliates')"><i class="ti ti-users"></i> <span>Affiliates</span></a>
+        <a onclick="showSection('groups')"><i class="ti ti-users-group"></i> <span>Groups</span></a>
+        <a onclick="showSection('ranks')"><i class="ti ti-award"></i> <span>Ranks</span></a>
+
+        <div class="nav-group-title">Business</div>
+        <a onclick="showSection('campaigns')"><i class="ti ti-speakerphone"></i> <span>Campaigns</span></a>
+        <a onclick="showSection('products')"><i class="ti ti-package"></i> <span>Products</span></a>
+        <a onclick="showSection('conversions')"><i class="ti ti-receipt"></i> <span>Conversions</span></a>
+        <a onclick="showSection('renewals')"><i class="ti ti-refresh"></i> <span>Renewals</span></a>
+        <a onclick="showSection('coupons')"><i class="ti ti-ticket"></i> <span>Coupons</span></a>
+
+        <div class="nav-group-title">Money</div>
+        <a onclick="showSection('payouts')"><i class="ti ti-cash"></i> <span>Payouts</span></a>
+        <a onclick="showSection('salesReports')"><i class="ti ti-report-analytics"></i> <span>Sales Reports</span></a>
+
+        <div class="nav-group-title">System</div>
+        <a onclick="showSection('notifications')"><i class="ti ti-bell"></i> <span>Notifications</span> <span id="notifBadge" style="background:#ef4444;color:#fff;padding:2px 6px;border-radius:10px;font-size:11px;display:none;margin-left:4px">0</span></a>
+        <a onclick="showSection('fraud')"><i class="ti ti-shield-check"></i> <span>Fraud</span></a>
+        <a onclick="showSection('logs')"><i class="ti ti-file-text"></i> <span>Logs</span></a>
+        <a onclick="showSection('knowledge')"><i class="ti ti-brain"></i> <span>Knowledge Base</span></a>
+        <a onclick="showSection('settings')"><i class="ti ti-settings"></i> <span>Settings</span></a>
+        <a onclick="showSection('pixel')"><i class="ti ti-code"></i> <span>Tracking Pixel</span></a>
+
         <div style="padding:10px 15px;margin-top:10px" id="langSelector"></div>
-        <a class="logout" onclick="logout()" data-i18n="auth.logout">Logout</a>
+        <a class="logout" onclick="logout()"><i class="ti ti-logout"></i> <span data-i18n="auth.logout">Logout</span></a>
     </div>
 
     <div class="main">
@@ -351,7 +366,18 @@ async function showDashboard(){
     document.getElementById('dashboardPage').style.display='block';
     if(!user){try{const d=JSON.parse(atob(token.split('.')[1]));user={name:d.email,company_id:d.company_id}}catch(e){}}
     document.getElementById('langSelector').innerHTML=getLanguageSelector();
+    createCmdKOverlay();
     loadOverview();setupPixelCodes();loadNotifBadge();
+    // Onboarding para primera vez
+    if(!localStorage.getItem('mr_onboarded')){
+        setTimeout(()=>showOnboarding([
+            {icon:'&#128075;',title:'Welcome to MagnetRaffic!',description:'Your platform for managing sales teams, commissions, and affiliate tracking. Let\'s get you set up in 4 quick steps.'},
+            {icon:'&#128188;',title:'Create Your First Campaign',description:'Campaigns are your products or offers. Go to <strong>Business → Campaigns</strong> to create one, or use the <strong>AI Assistant</strong> bar at the top to describe what you want.'},
+            {icon:'&#128101;',title:'Invite Your Agents',description:'Go to <strong>People → Affiliates</strong> to add agents manually, or share your signup link. Each agent gets their own portal with tracking links and team stats.'},
+            {icon:'&#128176;',title:'Configure Commissions',description:'Go to <strong>People → Ranks</strong> to set up commission rates per rank. Use <strong>Override Mode</strong> (fixed or difference) to control how team leaders earn from their team\'s sales.'},
+            {icon:'&#127881;',title:'You\'re Ready!',description:'Use <strong>Ctrl+K</strong> to search anything fast. Check <strong>Sales Reports</strong> for analytics, and <strong>Knowledge Base</strong> to train your AI assistant. Happy selling!'}
+        ]),500);
+    }
 }
 
 async function loadOverview(){
@@ -559,7 +585,7 @@ GET ${base}/postback?coupon={coupon_code}&amount={amount}&order_id={order_id}`;
 }
 function copyPixel(type){
     const el=document.getElementById(type==='js'?'jsPixelCode':type==='img'?'imgPixelCode':type==='s2s'?'s2sCode':'landingCode');
-    navigator.clipboard.writeText(el.textContent);alert('Copied!');
+    navigator.clipboard.writeText(el.textContent);toast('Copied!','success');
 }
 
 function exportCSV(type){
@@ -909,8 +935,8 @@ function showAddDocModal(){
 }
 async function createDoc(){
     const r=await api('/api/knowledge/documents',{method:'POST',body:JSON.stringify({title:document.getElementById('kb_title').value,content:document.getElementById('kb_content').value,category:document.getElementById('kb_cat').value,visibility:document.getElementById('kb_vis').value,description:document.getElementById('kb_desc').value})});
-    if(r.error){alert(r.error);return}
-    closeModal();alert('Document uploaded! Processing embeddings...');loadKnowledge();
+    if(r.error){toast(r.error,'error');return}
+    closeModal();toast('Document uploaded! Processing embeddings...','info');loadKnowledge();
 }
 async function reprocessDoc(id){await api('/api/knowledge/documents/'+id+'/reprocess',{method:'POST'});loadKnowledge()}
 async function deleteDoc(id){if(!confirm('Delete this document and all its embeddings?'))return;await api('/api/knowledge/documents/'+id,{method:'DELETE'});loadKnowledge()}
@@ -937,7 +963,7 @@ async function loadSettings(){
     // Webhooks
     try{const wh=await api('/api/webhooks');document.querySelector('#webhookTable tbody').innerHTML=wh.map(x=>`<tr><td>${E(x.name)}</td><td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${E(x.url)}</td><td style="font-size:11px">${(x.events||[]).join(', ')}</td><td><span class="badge ${x.is_active?'badge-green':'badge-red'}">${x.is_active?'Active':'Inactive'}</span></td><td style="font-size:11px">${x.last_triggered_at?new Date(x.last_triggered_at).toLocaleString():'Never'}</td><td><button class="btn btn-red" style="font-size:11px" onclick="deleteWebhook(${x.id})">Delete</button></td></tr>`).join('')||'<tr><td colspan="6" style="text-align:center;color:#64748b">No webhooks</td></tr>'}catch(e){}
 }
-async function savePayoutSettings(){await api('/api/wallet/settings',{method:'PUT',body:JSON.stringify({payout_schedule:document.getElementById('set_schedule').value,min_payout_amount:parseFloat(document.getElementById('set_minpayout').value)||50,payout_hold_days:parseInt(document.getElementById('set_hold').value)||0,auto_approve_payouts:document.getElementById('set_autoapprove').value==='true'})});alert('Settings saved!')}
+async function savePayoutSettings(){await api('/api/wallet/settings',{method:'PUT',body:JSON.stringify({payout_schedule:document.getElementById('set_schedule').value,min_payout_amount:parseFloat(document.getElementById('set_minpayout').value)||50,payout_hold_days:parseInt(document.getElementById('set_hold').value)||0,auto_approve_payouts:document.getElementById('set_autoapprove').value==='true'})});toast('Settings saved!','success')}
 function showAddProviderModal(){
     openModal(`<h2>Add Payment Provider</h2>
         <label>Provider</label><select id="pv_type"><option value="paypal">PayPal</option><option value="wire">Wire/ACH</option><option value="zelle">Zelle</option><option value="manual">Manual</option></select>
@@ -963,7 +989,7 @@ function showAddWebhookModal(){
 }
 async function createWebhook(){await api('/api/webhooks',{method:'POST',body:JSON.stringify({name:document.getElementById('wh_name').value,url:document.getElementById('wh_url').value,secret:document.getElementById('wh_secret').value||null,events:document.getElementById('wh_events').value.split(',').map(e=>e.trim()).filter(e=>e)})});closeModal();loadSettings()}
 async function deleteWebhook(id){if(!confirm('Delete this webhook?'))return;await api('/api/webhooks/'+id,{method:'DELETE'});loadSettings()}
-function showAddApiKeyModal(){alert('Run on server: npm run generate-api-key <company_id> "<name>"\\n\\nThe key will be shown once. Save it securely.')}
+function showAddApiKeyModal(){toast('Run on server: npm run generate-api-key <company_id> "name"','info',5000)}
 
 // AI ASSISTANT
 async function aiPreview(){
@@ -998,7 +1024,24 @@ async function aiApply(){
 }
 document.getElementById('aiPrompt').addEventListener('keydown',e=>{if(e.key==='Enter')aiPreview()});
 
-// GLOBAL SEARCH
+// CMD+K SEARCH
+async function cmdkSearch(q){
+    if(q.length<2){document.getElementById('cmdkResults').innerHTML='<p style="padding:20px;text-align:center;color:#64748b;font-size:13px">Type to search agents, campaigns, conversions...</p>';return}
+    document.getElementById('cmdkResults').innerHTML='<p style="padding:15px;color:#94a3b8;font-size:13px">Searching...</p>';
+    try{
+        const d=await api('/api/reports/search?q='+encodeURIComponent(q));
+        let html='';
+        const go=(section)=>`document.getElementById('cmdkOverlay').style.display='none';showSection('${section}')`;
+        if(d.affiliates?.length){html+=`<div style="padding:6px 16px;color:#64748b;font-size:11px;text-transform:uppercase">Agents</div>`;d.affiliates.forEach(a=>{html+=`<div style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;border-radius:8px;margin:2px 8px" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''" onclick="${go('affiliates')}"><i class="ti ti-user" style="color:#3b82f6"></i><span>${E(a.first_name||'')} ${E(a.last_name||'')}</span><span style="color:#64748b;font-size:12px">${E(a.email)}</span><code style="color:#3b82f6;margin-left:auto;font-size:11px">${E(a.ref_id)}</code></div>`})}
+        if(d.campaigns?.length){html+=`<div style="padding:6px 16px;color:#64748b;font-size:11px;text-transform:uppercase;margin-top:4px">Campaigns</div>`;d.campaigns.forEach(c=>{html+=`<div style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;border-radius:8px;margin:2px 8px" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''" onclick="${go('campaigns')}"><i class="ti ti-speakerphone" style="color:#22c55e"></i><span>${E(c.name)}</span></div>`})}
+        if(d.conversions?.length){html+=`<div style="padding:6px 16px;color:#64748b;font-size:11px;text-transform:uppercase;margin-top:4px">Conversions</div>`;d.conversions.forEach(c=>{html+=`<div style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;border-radius:8px;margin:2px 8px" onmouseover="this.style.background='#334155'" onmouseout="this.style.background=''" onclick="${go('conversions')}"><i class="ti ti-receipt" style="color:#8b5cf6"></i><span>$${N(c.amount)}</span><span style="color:#64748b;font-size:12px">${E(c.affiliate_email||'')}</span></div>`})}
+        if(!html)html='<p style="padding:20px;text-align:center;color:#64748b">No results found</p>';
+        html+='<div style="padding:8px 16px;border-top:1px solid #334155;margin-top:4px;text-align:center"><kbd style="background:#0f172a;color:#64748b;padding:2px 8px;border-radius:4px;font-size:10px;border:1px solid #334155">Ctrl+K</kbd> <span style="color:#64748b;font-size:11px">to toggle search</span></div>';
+        document.getElementById('cmdkResults').innerHTML=html;
+    }catch(e){document.getElementById('cmdkResults').innerHTML='<p style="padding:15px;color:#ef4444">Search failed</p>'}
+}
+
+// GLOBAL SEARCH (legacy - kept for search bar)
 let searchTimer;
 function debounceSearch(){clearTimeout(searchTimer);searchTimer=setTimeout(globalSearch,300)}
 async function globalSearch(){

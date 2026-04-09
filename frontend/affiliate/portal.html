@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MagnetRaffic - Affiliate Portal</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
     <script src="../i18n/translations.js"></script>
+    <script src="../i18n/ux.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0}
@@ -90,6 +92,8 @@
     <h1 id="welcomeName">Welcome</h1>
     <p class="subtitle">Affiliate ID: <code id="refIdDisplay" style="color:#8b5cf6;font-size:1.1em"></code></p>
 
+    <!-- TAB: WALLET -->
+    <div class="portal-tab" data-tab="wallet">
     <!-- WALLET / ACCOUNT -->
     <div class="link-box" id="walletSection" style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border:1px solid #334155">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
@@ -129,6 +133,10 @@
         </div>
     </div>
 
+    </div><!-- end tab wallet -->
+
+    <!-- TAB: LINKS -->
+    <div class="portal-tab" data-tab="links" style="display:none">
     <!-- TIER PROGRESS -->
     <div class="link-box" id="tierProgress" style="display:none">
         <h3>Tier Progress</h3>
@@ -163,9 +171,12 @@
         <p style="color:#94a3b8;font-size:13px" id="couponList">No coupons assigned yet.</p>
     </div>
 
-    <!-- AI CHAT -->
+    </div><!-- end tab links -->
+
+    <!-- TAB: AI -->
+    <div class="portal-tab" data-tab="ai" style="display:none">
     <div class="link-box" id="aiChatSection">
-        <h3 style="margin-bottom:10px">AI Assistant</h3>
+        <h3 style="margin-bottom:10px"><i class="ti ti-robot" style="color:#8b5cf6"></i> AI Assistant</h3>
         <p style="color:#94a3b8;font-size:12px;margin-bottom:10px">Ask anything about products, commissions, policies, or how to sell.</p>
         <div id="chatMessages" style="max-height:300px;overflow-y:auto;margin-bottom:10px"></div>
         <div style="display:flex;gap:8px">
@@ -174,13 +185,20 @@
         </div>
     </div>
 
+    </div><!-- end tab ai -->
+
+    <!-- TAB: MORE (notifications + coupon) -->
+    <div class="portal-tab" data-tab="more" style="display:none">
     <!-- NOTIFICATIONS -->
     <div class="link-box" id="notifSection">
         <h3 style="margin-bottom:15px">Notifications <span id="affNotifBadge" style="background:#ef4444;color:#fff;padding:2px 8px;border-radius:10px;font-size:12px;display:none">0</span></h3>
         <div id="affNotifList"></div>
     </div>
 
-    <!-- TEAM SECTION -->
+    </div><!-- end tab more -->
+
+    <!-- TAB: TEAM (actual content) -->
+    <div class="portal-tab" data-tab="team" style="display:none">
     <div class="link-box" id="teamSection">
         <h3 style="margin-bottom:15px">My Team</h3>
         <div class="stats-grid" id="teamStats" style="margin-bottom:20px"></div>
@@ -197,15 +215,17 @@
             <tbody></tbody>
         </table>
     </div>
+    </div><!-- end tab team -->
 </div>
 
-<!-- BOTTOM NAV (mobile) -->
-<div class="bottom-nav" id="bottomNav">
+<!-- TAB NAVIGATION -->
+<div class="bottom-nav" id="bottomNav" style="display:block">
     <div class="nav-items">
-        <a class="nav-item active" onclick="scrollToSection('affStats')"><span>&#128200;</span>Stats</a>
-        <a class="nav-item" onclick="scrollToSection('teamSection')"><span>&#128101;</span>Team</a>
-        <a class="nav-item" onclick="scrollToSection('notifSection')"><span>&#128276;</span>Alerts</a>
-        <a class="nav-item" onclick="affLogout()"><span>&#128682;</span>Logout</a>
+        <a class="nav-item active" onclick="showPortalTab('wallet',this)"><i class="ti ti-wallet" style="font-size:20px"></i>Wallet</a>
+        <a class="nav-item" onclick="showPortalTab('links',this)"><i class="ti ti-link" style="font-size:20px"></i>Links</a>
+        <a class="nav-item" onclick="showPortalTab('team',this)"><i class="ti ti-users-group" style="font-size:20px"></i>Team</a>
+        <a class="nav-item" onclick="showPortalTab('ai',this)"><i class="ti ti-robot" style="font-size:20px"></i>AI</a>
+        <a class="nav-item" onclick="showPortalTab('more',this)"><i class="ti ti-dots" style="font-size:20px"></i>More</a>
     </div>
 </div>
 
@@ -215,6 +235,14 @@ function scrollToSection(id){
     document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
     event.target.closest('.nav-item').classList.add('active');
 }
+function showPortalTab(tab, el) {
+    document.querySelectorAll('.portal-tab').forEach(t => t.style.display = 'none');
+    const target = document.querySelector(`[data-tab="${tab}"]`);
+    if (target) { target.style.display = 'block'; fadeIn(target); }
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+}
+
 const API=window.location.origin;
 document.getElementById('loginLangSelector').innerHTML=getLanguageSelector();
 let affToken=localStorage.getItem('mr_aff_token'),affData=null;
@@ -365,11 +393,11 @@ function showWithdrawModal(){
 async function submitWithdrawal(){
     try{
         const r=await fetch(API+'/api/wallet/withdraw',{method:'POST',headers:{'Authorization':'Bearer '+affToken,'Content-Type':'application/json'},body:JSON.stringify({amount:parseFloat(document.getElementById('wd_amount').value),payment_method:document.getElementById('wd_method').value,payment_details:{email:document.getElementById('wd_details').value}})}).then(r=>r.json());
-        if(r.error){alert(r.error);return}
+        if(r.error){toast(r.error,'error');return}
         document.getElementById('txnModal').style.display='none';
-        alert('Withdrawal request submitted! Status: '+r.status);
+        toast('Withdrawal request submitted! Status: '+r.status,'success');
         loadWallet();
-    }catch(e){alert('Error: '+e.message)}
+    }catch(e){toast('Error: '+e.message,'error')}
 }
 
 async function showMovements(){
@@ -446,7 +474,7 @@ async function sendChat(){
     msgs.scrollTop=msgs.scrollHeight;
 }
 
-function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent);alert('Copied!')}
+function copyEl(id){navigator.clipboard.writeText(document.getElementById(id).textContent);toast('Copied!','success')}
 function affLogout(){localStorage.removeItem('mr_aff_token');affToken=null;location.reload()}
 </script>
 </body>
