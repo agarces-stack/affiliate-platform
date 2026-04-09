@@ -65,6 +65,11 @@ async function migrate() {
         await pool.query(productsGoalsMigration);
         console.log('Products & Goals tables created!');
 
+        // Ejecutar migration de commission groups
+        const commGroupsMigration = fs.readFileSync(path.join(__dirname, 'migration_commission_groups.sql'), 'utf8');
+        await pool.query(commGroupsMigration);
+        console.log('Commission groups tables created!');
+
         // Crear empresas
         console.log('Creating seed data...');
         await pool.query(`
