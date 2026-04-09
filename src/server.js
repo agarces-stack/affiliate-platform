@@ -124,6 +124,7 @@ app.use('/api/ai', apiLimiter, aiRoutes);
 // FRONTEND ROUTES
 // ============================================
 const path = require('path');
+app.use('/i18n', express.static(path.join(__dirname, '../frontend/i18n')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../frontend/index.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, '../frontend/admin/dashboard.html')));
 app.get('/affiliate', (req, res) => res.sendFile(path.join(__dirname, '../frontend/affiliate/portal.html')));

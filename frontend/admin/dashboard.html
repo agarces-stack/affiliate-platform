@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MagnetRaffic - Admin Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="../i18n/translations.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0}
@@ -83,7 +84,8 @@
         <a onclick="showSection('logs')">Logs</a>
         <a onclick="showSection('settings')">Settings</a>
         <a onclick="showSection('pixel')">Tracking Pixel</a>
-        <a class="logout" onclick="logout()">Logout</a>
+        <div style="padding:10px 15px;margin-top:10px" id="langSelector"></div>
+        <a class="logout" onclick="logout()" data-i18n="auth.logout">Logout</a>
     </div>
 
     <div class="main">
@@ -333,6 +335,7 @@ async function showDashboard(){
     document.getElementById('loginPage').style.display='none';
     document.getElementById('dashboardPage').style.display='block';
     if(!user){try{const d=JSON.parse(atob(token.split('.')[1]));user={name:d.email,company_id:d.company_id}}catch(e){}}
+    document.getElementById('langSelector').innerHTML=getLanguageSelector();
     loadOverview();setupPixelCodes();loadNotifBadge();
 }
 

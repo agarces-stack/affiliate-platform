@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MagnetRaffic - Affiliate Portal</title>
+    <script src="../i18n/translations.js"></script>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0}
@@ -58,10 +59,11 @@
 <div class="login-page" id="loginPage">
     <div class="login-box">
         <h2>MagnetRaffic</h2>
-        <p style="text-align:center;color:#94a3b8;margin-bottom:20px">Affiliate Portal</p>
+        <p style="text-align:center;color:#94a3b8;margin-bottom:10px" data-i18n="auth.affiliate_portal">Affiliate Portal</p>
+        <div style="text-align:center;margin-bottom:15px" id="loginLangSelector"></div>
         <div class="tabs">
-            <button class="active" onclick="showTab('login')">Login</button>
-            <button onclick="showTab('register')">Register</button>
+            <button class="active" onclick="showTab('login')" data-i18n="auth.login">Login</button>
+            <button onclick="showTab('register')" data-i18n="auth.register">Register</button>
         </div>
         <div class="error" id="affError"></div>
         <div class="success" id="affSuccess"></div>
@@ -128,7 +130,7 @@
     </div>
 
     <div class="link-box">
-        <h3>Your Tracking Links</h3>
+        <h3 data-i18n="team.tracking_links">Your Tracking Links</h3>
         <label style="color:#94a3b8;font-size:13px">Select Campaign:</label>
         <select id="campaignSelect" onchange="updateLink()">
             <option value="1">Default Campaign</option>
@@ -197,6 +199,7 @@ function scrollToSection(id){
     event.target.closest('.nav-item').classList.add('active');
 }
 const API=window.location.origin;
+document.getElementById('loginLangSelector').innerHTML=getLanguageSelector();
 let affToken=localStorage.getItem('mr_aff_token'),affData=null;
 if(affToken)showPortal();
 
