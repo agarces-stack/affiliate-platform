@@ -10,7 +10,9 @@
     "change-password": "node scripts/change-password.js",
     "create-admin": "node scripts/create-admin.js",
     "generate-secret": "node scripts/generate-jwt-secret.js",
-    "generate-api-key": "node scripts/generate-api-key.js"
+    "generate-api-key": "node scripts/generate-api-key.js",
+    "test": "node --test tests/unit/*.test.js",
+    "test:watch": "node --test --watch tests/unit/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

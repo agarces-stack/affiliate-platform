@@ -2,18 +2,21 @@
 
 // Cap pagination limit
 function capLimit(value, defaultLimit = 50, maxLimit = 200) {
-    const parsed = parseInt(value) || defaultLimit;
+    const parsed = parseInt(value);
+    // If NaN or undefined, use default. If valid (including 0), clamp it.
+    if (isNaN(parsed)) return defaultLimit;
     return Math.min(Math.max(parsed, 1), maxLimit);
 }
 
 // Validate email format
 function isValidEmail(email) {
+    if (!email || typeof email !== 'string') return false;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 // Validate password strength
 function isStrongPassword(password) {
-    return password && password.length >= 8;
+    return typeof password === 'string' && password.length >= 8;
 }
 
 // Sanitize error message (don't leak internals)
